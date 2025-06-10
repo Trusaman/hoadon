@@ -8,7 +8,9 @@ import {
     getErrorMessage,
     formatFileSize,
     formatTimestamp,
+    solveCaptcha,
     type CaptchaResponse,
+    type CaptchaSolverResult,
 } from "@/lib/captcha-api";
 
 interface CaptchaState {
@@ -16,6 +18,9 @@ interface CaptchaState {
     data: CaptchaResponse | null;
     error: string | null;
     lastFetched: string | null;
+    solving: boolean;
+    solverResult: CaptchaSolverResult | null;
+    solverError: string | null;
 }
 
 export default function CaptchaFetcher() {
@@ -24,10 +29,14 @@ export default function CaptchaFetcher() {
         data: null,
         error: null,
         lastFetched: null,
+        solving: false,
+        solverResult: null,
+        solverError: null,
     });
 
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [refreshInterval, setRefreshInterval] = useState(30); // seconds
+    const [autoSolve, setAutoSolve] = useState(false); // Auto-solve toggle
 
     // Fetch captcha function
     const handleFetchCaptcha = useCallback(async () => {
@@ -46,6 +55,9 @@ export default function CaptchaFetcher() {
                     data: response,
                     error: null,
                     lastFetched: new Date().toISOString(),
+                    solving: false,
+                    solverResult: null,
+                    solverError: null,
                 });
             } else {
                 setCaptchaState({
@@ -53,6 +65,9 @@ export default function CaptchaFetcher() {
                     data: null,
                     error: response.error || "Failed to fetch captcha",
                     lastFetched: null,
+                    solving: false,
+                    solverResult: null,
+                    solverError: null,
                 });
             }
         } catch (error) {
@@ -64,9 +79,69 @@ export default function CaptchaFetcher() {
                         ? error.message
                         : "Unknown error occurred",
                 lastFetched: null,
+                solving: false,
+                solverResult: null,
+                solverError: null,
             });
         }
     }, []);
+
+    // Solve captcha function
+    const handleSolveCaptcha = useCallback(async () => {
+        if (!captchaState.data?.data?.rawSvg) {
+            setCaptchaState((prev) => ({
+                ...prev,
+                solverError: "No SVG content available to solve",
+            }));
+            return;
+        }
+
+        setCaptchaState((prev) => ({
+            ...prev,
+            solving: true,
+            solverError: null,
+            solverResult: null,
+        }));
+
+        try {
+            const result = await solveCaptcha(captchaState.data.data.rawSvg);
+            setCaptchaState((prev) => ({
+                ...prev,
+                solving: false,
+                solverResult: result,
+                solverError: result.success
+                    ? null
+                    : result.error || "Failed to solve captcha",
+            }));
+        } catch (error) {
+            setCaptchaState((prev) => ({
+                ...prev,
+                solving: false,
+                solverError:
+                    error instanceof Error
+                        ? error.message
+                        : "Unknown error occurred while solving",
+            }));
+        }
+    }, [captchaState.data?.data?.rawSvg]);
+
+    // Auto-solve effect - trigger when new captcha is fetched and auto-solve is enabled
+    useEffect(() => {
+        if (
+            autoSolve &&
+            captchaState.data?.data?.rawSvg &&
+            !captchaState.solving &&
+            !captchaState.solverResult
+        ) {
+            handleSolveCaptcha();
+        }
+    }, [
+        autoSolve,
+        captchaState.data?.data?.rawSvg,
+        captchaState.solving,
+        captchaState.solverResult,
+        handleSolveCaptcha,
+    ]);
 
     // Auto-refresh effect
     useEffect(() => {
@@ -96,12 +171,13 @@ export default function CaptchaFetcher() {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                        Vietnamese Tax Authority Captcha Fetcher
+                        Vietnamese Tax Authority Captcha Fetcher & Solver
                     </h1>
                     <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                        Fetch and display captcha images from the Vietnamese tax
-                        authority's system (hoadondientu.gdt.gov.vn). This tool
-                        helps developers test captcha integration.
+                        Fetch captcha images from the Vietnamese tax authority's
+                        system (hoadondientu.gdt.gov.vn) and automatically solve
+                        them using our integrated SVG captcha solver. Perfect
+                        for developers testing captcha integration workflows.
                     </p>
                 </div>
 
@@ -133,7 +209,7 @@ export default function CaptchaFetcher() {
                             </button>
 
                             {/* Auto-refresh Controls */}
-                            <div className="flex items-center gap-4">
+                            <div className="flex flex-wrap items-center gap-4">
                                 <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                     <input
                                         type="checkbox"
@@ -164,6 +240,18 @@ export default function CaptchaFetcher() {
                                         <option value={300}>5m</option>
                                     </select>
                                 )}
+
+                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={autoSolve}
+                                        onChange={(e) =>
+                                            setAutoSolve(e.target.checked)
+                                        }
+                                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    />
+                                    Auto-solve
+                                </label>
                             </div>
                         </div>
 
@@ -209,12 +297,43 @@ export default function CaptchaFetcher() {
                                         </p>
                                     </div>
                                 ) : captchaState.data?.data ? (
-                                    <div className="w-full">
+                                    <div className="w-full space-y-4">
                                         <img
                                             src={captchaState.data.data.image}
                                             alt="Vietnamese Tax Authority Captcha"
                                             className="max-w-full h-auto mx-auto border border-gray-200 dark:border-gray-600 rounded [image-rendering:pixelated]"
                                         />
+
+                                        {/* Solve Button */}
+                                        <div className="flex justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={handleSolveCaptcha}
+                                                disabled={
+                                                    captchaState.solving ||
+                                                    !captchaState.data?.data
+                                                        ?.rawSvg
+                                                }
+                                                className={cn(
+                                                    "px-6 py-2 rounded-lg font-medium transition-all duration-200",
+                                                    "focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2",
+                                                    captchaState.solving ||
+                                                        !captchaState.data?.data
+                                                            ?.rawSvg
+                                                        ? "bg-gray-400 cursor-not-allowed text-white"
+                                                        : "bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg"
+                                                )}
+                                            >
+                                                {captchaState.solving ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        Solving...
+                                                    </div>
+                                                ) : (
+                                                    "🧩 Solve Captcha"
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="text-center">
@@ -276,7 +395,7 @@ export default function CaptchaFetcher() {
                                             </span>
                                         </div>
                                     )}
-                                    <div className="flex justify-between items-center py-2">
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
                                         <span className="text-gray-600 dark:text-gray-400">
                                             Status:
                                         </span>
@@ -284,6 +403,75 @@ export default function CaptchaFetcher() {
                                             ✅ Successfully loaded
                                         </span>
                                     </div>
+
+                                    {/* Solver Results */}
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-gray-600 dark:text-gray-400">
+                                            Solved Text:
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {captchaState.solving ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                                    <span className="text-blue-600 dark:text-blue-400 text-sm">
+                                                        Solving...
+                                                    </span>
+                                                </div>
+                                            ) : captchaState.solverResult
+                                                  ?.success ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-lg bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 px-3 py-1 rounded border border-green-200 dark:border-green-800">
+                                                        {
+                                                            captchaState
+                                                                .solverResult
+                                                                .solvedText
+                                                        }
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            navigator.clipboard.writeText(
+                                                                captchaState
+                                                                    .solverResult
+                                                                    ?.solvedText ||
+                                                                    ""
+                                                            )
+                                                        }
+                                                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                                        title="Copy to clipboard"
+                                                    >
+                                                        📋
+                                                    </button>
+                                                </div>
+                                            ) : captchaState.solverError ? (
+                                                <span className="text-red-600 dark:text-red-400 text-sm">
+                                                    ❌{" "}
+                                                    {captchaState.solverError}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-500 dark:text-gray-400 text-sm">
+                                                    Click "Solve Captcha" to get
+                                                    result
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Processing Time */}
+                                    {captchaState.solverResult
+                                        ?.processingTime && (
+                                        <div className="flex justify-between items-center py-2 border-t border-gray-200 dark:border-gray-600">
+                                            <span className="text-gray-600 dark:text-gray-400">
+                                                Processing Time:
+                                            </span>
+                                            <span className="font-mono text-sm">
+                                                {captchaState.solverResult.processingTime.toFixed(
+                                                    2
+                                                )}
+                                                ms
+                                            </span>
+                                        </div>
+                                    )}
                                     {captchaState.data.data.rawSvg && (
                                         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
                                             <details className="group">

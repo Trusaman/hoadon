@@ -17,6 +17,14 @@ export interface CaptchaResponse {
     timestamp?: string;
 }
 
+export interface CaptchaSolverResult {
+    success: boolean;
+    solvedText?: string;
+    processingTime?: number;
+    error?: string;
+    timestamp: string;
+}
+
 export interface CaptchaError {
     message: string;
     type: "network" | "server" | "parsing" | "unknown";
@@ -166,5 +174,56 @@ export function formatTimestamp(timestamp: string): string {
         });
     } catch {
         return timestamp;
+    }
+}
+
+/**
+ * Solve captcha using the integrated CaptchaSolver
+ * @param svgContent - Raw SVG content to solve
+ * @returns Promise<CaptchaSolverResult>
+ */
+export async function solveCaptcha(
+    svgContent: string
+): Promise<CaptchaSolverResult> {
+    const startTime = performance.now();
+
+    try {
+        // Import the CaptchaSolver dynamically to avoid SSR issues
+        const { CaptchaSolver } = await import(
+            "@/app/captcha-solver/svg-captcha-solver"
+        );
+
+        // Solve the captcha
+        const solvedText = CaptchaSolver.solve(svgContent);
+        const processingTime = performance.now() - startTime;
+
+        if (!solvedText || solvedText.length === 0) {
+            return {
+                success: false,
+                error: "No characters could be recognized from the captcha",
+                timestamp: new Date().toISOString(),
+                processingTime,
+            };
+        }
+
+        return {
+            success: true,
+            solvedText,
+            processingTime,
+            timestamp: new Date().toISOString(),
+        };
+    } catch (error) {
+        const processingTime = performance.now() - startTime;
+        console.error("Error solving captcha:", error);
+
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred while solving captcha",
+            timestamp: new Date().toISOString(),
+            processingTime,
+        };
     }
 }
