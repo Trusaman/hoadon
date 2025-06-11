@@ -7,8 +7,10 @@ import {
     fetchCaptcha,
     solveCaptcha,
     isValidCaptchaResponse,
+    queryInvoices,
     type CaptchaResponse,
     type CaptchaSolverResult,
+    type InvoiceQueryResponse,
 } from "@/lib/captcha-api";
 
 interface AuthenticationResponse {
@@ -51,6 +53,12 @@ export default function AuthenticatePage() {
         null
     );
     const [authError, setAuthError] = useState<string | null>(null);
+
+    // Invoice query state
+    const [queryingInvoices, setQueryingInvoices] = useState(false);
+    const [invoiceResult, setInvoiceResult] =
+        useState<InvoiceQueryResponse | null>(null);
+    const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
     // Fetch captcha
     const handleFetchCaptcha = async () => {
@@ -155,6 +163,43 @@ export default function AuthenticatePage() {
             );
         } finally {
             setAuthenticating(false);
+        }
+    };
+
+    // Query invoices
+    const handleQueryInvoices = async () => {
+        if (!authResult?.token) {
+            setInvoiceError("No authentication token available");
+            return;
+        }
+
+        setQueryingInvoices(true);
+        setInvoiceError(null);
+        setInvoiceResult(null);
+
+        try {
+            const response = await queryInvoices({
+                token: authResult.token,
+                queryParams: {
+                    sort: "tdlap:desc,khmshdon:asc,shdon:desc",
+                    size: "15",
+                    search: "tdlap=ge=06/01/2025T00:00:00;tdlap=le=07/01/2025T23:59:59;ttxly==5",
+                },
+            });
+
+            setInvoiceResult(response);
+
+            if (!response.success) {
+                setInvoiceError(response.error || "Invoice query failed");
+            }
+        } catch (error) {
+            setInvoiceError(
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred"
+            );
+        } finally {
+            setQueryingInvoices(false);
         }
     };
 
@@ -505,6 +550,170 @@ export default function AuthenticatePage() {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Invoice Query Section */}
+                        {authResult.success && authResult.token && (
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                                    📄 Query Invoices
+                                    <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 text-sm rounded-full">
+                                        Vietnamese Tax Portal
+                                    </span>
+                                </h2>
+
+                                <div className="space-y-4">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                                        <p className="text-blue-800 dark:text-blue-200 text-sm">
+                                            Query invoices from the Vietnamese
+                                            Tax Authority using your
+                                            authenticated token. This will
+                                            search for invoices from 06/01/2025
+                                            to 07/01/2025 with status 5.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleQueryInvoices}
+                                        disabled={queryingInvoices}
+                                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                    >
+                                        {queryingInvoices ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                                Querying Invoices...
+                                            </>
+                                        ) : (
+                                            <>📄 Query Invoices</>
+                                        )}
+                                    </button>
+
+                                    {/* Invoice Error Display */}
+                                    {invoiceError && (
+                                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <span className="text-red-600 dark:text-red-400 text-xl mr-3">
+                                                    ❌
+                                                </span>
+                                                <div>
+                                                    <h3 className="text-red-800 dark:text-red-200 font-semibold">
+                                                        Invoice Query Failed
+                                                    </h3>
+                                                    <p className="text-red-600 dark:text-red-400 mt-1">
+                                                        {invoiceError}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Invoice Results Display */}
+                                    {invoiceResult && (
+                                        <div className="space-y-4">
+                                            <div
+                                                className={cn(
+                                                    "rounded-lg p-4 border",
+                                                    invoiceResult.success
+                                                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                                                        : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                                                )}
+                                            >
+                                                <div className="flex items-center">
+                                                    <span
+                                                        className={cn(
+                                                            "text-xl mr-3",
+                                                            invoiceResult.success
+                                                                ? "text-green-600 dark:text-green-400"
+                                                                : "text-red-600 dark:text-red-400"
+                                                        )}
+                                                    >
+                                                        {invoiceResult.success
+                                                            ? "✅"
+                                                            : "❌"}
+                                                    </span>
+                                                    <div>
+                                                        <h3
+                                                            className={cn(
+                                                                "font-semibold",
+                                                                invoiceResult.success
+                                                                    ? "text-green-800 dark:text-green-200"
+                                                                    : "text-red-800 dark:text-red-200"
+                                                            )}
+                                                        >
+                                                            {invoiceResult.success
+                                                                ? "Invoice Query Successful!"
+                                                                : "Invoice Query Failed"}
+                                                        </h3>
+                                                        <p
+                                                            className={cn(
+                                                                "text-sm mt-1",
+                                                                invoiceResult.success
+                                                                    ? "text-green-600 dark:text-green-400"
+                                                                    : "text-red-600 dark:text-red-400"
+                                                            )}
+                                                        >
+                                                            {invoiceResult.success
+                                                                ? "Successfully retrieved invoice data from Vietnamese Tax Authority"
+                                                                : invoiceResult.error ||
+                                                                  "Invoice query request failed"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Invoice Data Display */}
+                                            {invoiceResult.success &&
+                                                invoiceResult.data && (
+                                                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                        <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                                            📊 Invoice Data
+                                                        </h4>
+                                                        <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto">
+                                                            <pre className="text-green-400 text-sm font-mono">
+                                                                {JSON.stringify(
+                                                                    invoiceResult.data,
+                                                                    null,
+                                                                    2
+                                                                )}
+                                                            </pre>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                            {/* Invoice Query Details */}
+                                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                                    🔍 Query Details
+                                                </h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                        <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                            Status
+                                                        </div>
+                                                        <div className="text-gray-800 dark:text-gray-200 font-semibold">
+                                                            {invoiceResult.status ||
+                                                                "N/A"}
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                        <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                            Timestamp
+                                                        </div>
+                                                        <div className="text-gray-800 dark:text-gray-200 font-mono text-xs">
+                                                            {invoiceResult.timestamp
+                                                                ? new Date(
+                                                                      invoiceResult.timestamp
+                                                                  ).toLocaleString()
+                                                                : "N/A"}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

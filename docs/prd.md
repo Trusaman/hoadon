@@ -172,6 +172,20 @@ src/app/helpers-demo/
   - **Quick Actions**: Try again, navigate to dashboard, and other quick links
   - **Comprehensive Error Display**: User-friendly error messages with technical details
 
+### Phase 7: Invoice Query System ✅ **COMPLETED**
+- **Objective**: Use authentication token to query invoices from Vietnamese Tax Authority
+- **Features**:
+  - **Invoice Query API Route**: POST endpoint to `/api/query-invoices` that queries Vietnamese Tax Authority
+  - **Token-Based Authentication**: Uses authentication token from successful login
+  - **Invoice Query Integration**: Seamlessly integrated into authentication page
+  - **Predefined Query Parameters**: Searches invoices from 06/01/2025 to 07/01/2025 with status 5
+  - **Real-time Invoice Display**: Shows invoice data in structured format
+  - **Query Results Visualization**: Comprehensive display of invoice query results
+  - **Error Handling**: Proper handling of query failures and network errors
+  - **Query Details Display**: Shows query parameters, status, and timestamp
+  - **Raw Data Viewer**: Complete invoice response inspection
+  - **Loading States**: Visual feedback during invoice query processing
+
 ### Phase 3: Advanced Features
 - Performance monitoring integration
 - Interactive code editor

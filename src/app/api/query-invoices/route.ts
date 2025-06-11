@@ -1,58 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * API route to authenticate with Vietnamese Tax Authority
- * Sends POST request to security-taxpayer/authenticate endpoint
+ * API route to query invoices from Vietnamese Tax Authority
+ * Sends POST request to query/invoices/purchase endpoint with authentication token
  */
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { ckey, cvalue, password, username } = body;
+        const { token, queryParams } = body;
 
         // Validate required fields
-        if (!ckey || !cvalue || !password || !username) {
+        if (!token) {
             return NextResponse.json(
                 {
-                    error: "Missing required fields",
-                    required: ["ckey", "cvalue", "password", "username"],
-                    received: {
-                        ckey: !!ckey,
-                        cvalue: !!cvalue,
-                        password: !!password,
-                        username: !!username,
-                    },
+                    error: "Missing authentication token",
+                    required: ["token"],
                     success: false,
                 },
                 { status: 400 }
             );
         }
 
-        const authUrl =
-            "https://hoadondientu.gdt.gov.vn:30000/security-taxpayer/authenticate";
-
-        // Prepare authentication payload
-        const authPayload = {
-            ckey,
-            cvalue,
-            password,
-            username,
+        // Default query parameters for invoice search
+        const defaultParams = {
+            sort: "tdlap:desc,khmshdon:asc,shdon:desc",
+            size: "15",
+            search: "tdlap=ge=06/01/2025T00:00:00;tdlap=le=07/01/2025T23:59:59;ttxly==5",
         };
 
-        console.log("Authenticating with Vietnamese Tax Authority:", {
-            url: authUrl,
-            payload: {
-                ckey,
-                cvalue: cvalue.substring(0, 3) + "***", // Mask captcha value in logs
-                username,
-                password: "***", // Mask password in logs
-            },
+        // Merge with provided query parameters
+        const finalParams = { ...defaultParams, ...queryParams };
+
+        // Build query string
+        const queryString = new URLSearchParams(finalParams).toString();
+        const invoiceUrl = `https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase?${queryString}`;
+
+        console.log("Querying invoices from Vietnamese Tax Authority:", {
+            url: invoiceUrl,
+            hasToken: !!token,
+            tokenLength: token.length,
+            queryParams: finalParams,
         });
 
-        // Send authentication request
-        const response = await fetch(authUrl, {
-            method: "POST",
+        // Send invoice query request (using GET method as required by Vietnamese Tax Authority)
+        const response = await fetch(invoiceUrl, {
+            method: "GET",
             headers: {
-                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
                 "User-Agent":
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 Accept: "application/json",
@@ -60,21 +54,20 @@ export async function POST(request: NextRequest) {
                 "Cache-Control": "no-cache",
                 Pragma: "no-cache",
             },
-            body: JSON.stringify(authPayload),
         });
 
-        console.log("Authentication response status:", response.status);
+        console.log("Invoice query response status:", response.status);
 
         if (!response.ok) {
             const errorText = await response.text();
             console.error(
-                `Authentication failed: ${response.status} ${response.statusText}`,
+                `Invoice query failed: ${response.status} ${response.statusText}`,
                 errorText
             );
 
             return NextResponse.json(
                 {
-                    error: "Authentication failed",
+                    error: "Invoice query failed",
                     status: response.status,
                     statusText: response.statusText,
                     details: errorText,
@@ -95,29 +88,25 @@ export async function POST(request: NextRequest) {
             responseData = await response.text();
         }
 
-        console.log("Authentication successful:", {
+        console.log("Invoice query successful:", {
             status: response.status,
             contentType,
-            hasToken: !!(responseData?.token || responseData?.access_token),
+            hasData: !!responseData,
+            dataType: typeof responseData,
         });
 
-        // Return successful authentication response
+        // Return successful invoice query response
         return NextResponse.json({
             success: true,
             data: responseData,
-            token: responseData?.token || responseData?.access_token || null,
             status: response.status,
             contentType,
             timestamp: new Date().toISOString(),
-            authPayload: {
-                ckey,
-                cvalue,
-                username,
-                // Don't return password in response
-            },
+            queryParams: finalParams,
+            url: invoiceUrl,
         });
     } catch (error) {
-        console.error("Authentication error:", error);
+        console.error("Invoice query error:", error);
 
         // Determine error type for better user feedback
         let errorMessage = "Unknown error occurred";
@@ -125,7 +114,7 @@ export async function POST(request: NextRequest) {
 
         if (error instanceof TypeError && error.message.includes("fetch")) {
             errorMessage =
-                "Network error: Unable to connect to authentication service";
+                "Network error: Unable to connect to invoice service";
             statusCode = 503;
         } else if (error instanceof SyntaxError) {
             errorMessage = "Invalid JSON in request body";
@@ -137,25 +126,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
             {
                 error: errorMessage,
-                type: "authentication_error",
+                type: "invoice_query_error",
                 timestamp: new Date().toISOString(),
                 success: false,
             },
             { status: statusCode }
         );
     }
-}
-
-/**
- * Handle OPTIONS request for CORS preflight
- */
-export async function OPTIONS(request: NextRequest) {
-    return new NextResponse(null, {
-        status: 200,
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        },
-    });
 }

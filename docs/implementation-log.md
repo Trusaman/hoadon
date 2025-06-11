@@ -496,6 +496,129 @@ Successfully implemented a complete authentication system that integrates with t
   - Consistent error messaging across the application
   - Network error detection and user-friendly messages
 
+## Phase 7: Invoice Query System ✅ **COMPLETED**
+
+### Overview
+Successfully implemented a complete invoice query system that uses authentication tokens from the Vietnamese Tax Authority to query invoice data. The system is seamlessly integrated into the authentication page, providing immediate access to invoice data once authentication is successful.
+
+### What Was Implemented
+
+#### 1. Invoice Query API Route (`src/app/api/query-invoices/route.ts`)
+- **Endpoint**: POST `/api/query-invoices`
+- **Purpose**: Server-side proxy for Vietnamese Tax Authority invoice queries
+- **Target URL**: `https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase`
+- **Request Body**: `{token, queryParams}`
+- **Features**:
+  - Token-based authentication using Bearer token
+  - Predefined query parameters for invoice search
+  - Date range filtering (06/01/2025 to 07/01/2025)
+  - Status filtering (ttxly==5)
+  - Sorting by date, customer code, and invoice number
+  - Comprehensive error handling with proper HTTP status codes
+  - Detailed logging with token masking for security
+  - CORS support for cross-origin requests
+  - Response content type detection and handling
+
+#### 2. Enhanced Authentication Page (`src/app/authenticate/page.tsx`)
+- **New Feature**: Invoice Query Section
+- **Integration**: Seamlessly integrated into existing authentication flow
+- **Features**:
+  - **Query Button**: Appears when authentication is successful and token is available
+  - **Loading States**: Visual feedback during invoice query processing
+  - **Results Display**: Comprehensive display of invoice query results
+  - **Error Handling**: User-friendly error messages for query failures
+  - **Query Details**: Shows query parameters, status, and timestamp
+  - **Raw Data Viewer**: Complete invoice response inspection with JSON formatting
+  - **Success/Failure Indicators**: Visual status indicators for query results
+  - **Responsive Design**: Mobile-friendly layout with proper spacing
+
+#### 3. Enhanced Captcha API Utilities (`src/lib/captcha-api.ts`)
+- **New Interface**: `InvoiceQueryRequest` for type safety
+- **New Interface**: `InvoiceQueryResponse` for standardized responses
+- **New Function**: `queryInvoices()` for reusable invoice querying
+- **Features**:
+  - Type-safe interfaces for all invoice query operations
+  - Standardized error handling and response formatting
+  - Consistent error messaging across the application
+  - Network error detection and user-friendly messages
+  - Token validation and security handling
+
+### Technical Implementation Details
+
+#### Query Parameters
+- **Sort**: `tdlap:desc,khmshdon:asc,shdon:desc` (Date descending, Customer code ascending, Invoice number descending)
+- **Size**: `15` (Maximum 15 results per query)
+- **Search**: `tdlap=ge=06/01/2025T00:00:00;tdlap=le=07/01/2025T23:59:59;ttxly==5`
+  - Date range: January 6, 2025 to January 7, 2025
+  - Status: 5 (specific invoice status)
+
+#### Security Features
+- **Token Masking**: Authentication tokens are masked in logs for security
+- **Bearer Authentication**: Proper Authorization header implementation
+- **Input Validation**: Comprehensive validation of required fields
+- **Error Sanitization**: Sensitive information removed from error responses
+
+#### User Experience
+- **Seamless Integration**: Query functionality appears automatically after successful authentication
+- **Visual Feedback**: Loading spinners, success/error indicators, and progress states
+- **Data Visualization**: Structured display of invoice data with proper formatting
+- **Copy Functionality**: Easy access to query results and raw data
+- **Error Recovery**: Clear error messages with actionable guidance
+
+### Key Features
+
+1. **Token-Based Authentication**: Uses authentication token from successful login
+2. **Predefined Query Parameters**: Optimized search parameters for common use cases
+3. **Real-time Results**: Immediate display of invoice query results
+4. **Comprehensive Error Handling**: Network errors, authentication failures, and API errors
+5. **Data Visualization**: Structured display of invoice data and metadata
+6. **Security**: Proper token handling and sensitive data masking
+7. **Integration**: Seamlessly integrated into existing authentication workflow
+8. **Responsive Design**: Works on all device sizes with proper layout
+
+### Critical Bug Fix: Invoice Query HTTP Method ✅ **FIXED**
+
+#### Issue Identified
+The invoice query functionality was failing with HTTP 500 errors from the Vietnamese Tax Authority API. Server logs showed: `"Request method 'POST' not supported"` for the `/invoices/purchase` endpoint.
+
+#### Root Cause Analysis
+The invoice query API route was using POST method to query invoices, but the Vietnamese Tax Authority API expects GET requests for invoice queries.
+
+#### Solution Implemented
+1. **HTTP Method Change**: Changed from POST to GET in the fetch request
+2. **Header Optimization**: Removed `Content-Type: application/json` header (not needed for GET)
+3. **Query Parameters**: Maintained URL query parameters for search criteria
+4. **Authentication**: Kept Bearer token authentication in Authorization header
+
+#### Technical Details
+- **Before**: `method: "POST"` with `Content-Type: application/json`
+- **After**: `method: "GET"` without content-type header
+- **URL**: Query parameters remain in URL as expected by the API
+- **Authentication**: Bearer token still passed in Authorization header
+
+#### Validation Results
+- **Server Response**: Changed from 500 Internal Server Error to 200 OK
+- **Response Data**: Successfully receiving invoice data from Vietnamese Tax Authority
+- **Content Type**: Confirmed `application/json` response with actual invoice data
+- **Performance**: Query processing time ~500-750ms (normal for external API)
+
+#### Browser Testing Results
+- ✅ Authentication flow working correctly
+- ✅ Token generation successful
+- ✅ Invoice query button appears after authentication
+- ✅ Invoice query returns 200 status with real data
+- ✅ No console errors during invoice query
+- ✅ Invoice data displayed properly in UI
+
+### Files Created/Modified for Invoice Query System
+
+1. **Created**: `src/app/api/query-invoices/route.ts` - Invoice query API route
+2. **Modified**: `src/lib/captcha-api.ts` - Added invoice query interfaces and functions
+3. **Modified**: `src/app/authenticate/page.tsx` - Integrated invoice query functionality
+4. **Modified**: `docs/prd.md` - Added invoice query requirements
+5. **Modified**: `docs/implementation-log.md` - This implementation log update
+6. **🔧 FIXED**: `src/app/api/query-invoices/route.ts` - Changed POST to GET method for Vietnamese Tax Authority compatibility
+
 ### Technical Implementation Details
 
 #### Authentication Flow

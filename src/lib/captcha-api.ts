@@ -58,6 +58,28 @@ export interface AuthenticationResponse {
     };
 }
 
+export interface InvoiceQueryRequest {
+    token: string;
+    queryParams?: {
+        sort?: string;
+        size?: string;
+        search?: string;
+    };
+}
+
+export interface InvoiceQueryResponse {
+    success: boolean;
+    data?: any;
+    error?: string;
+    status?: number;
+    statusText?: string;
+    details?: string;
+    timestamp?: string;
+    queryParams?: any;
+    url?: string;
+    contentType?: string;
+}
+
 export interface CaptchaError {
     message: string;
     type: "network" | "server" | "parsing" | "unknown";
@@ -364,6 +386,60 @@ export async function authenticateWithTaxAuthority(
             success: false,
             error: authError.message,
             timestamp: authError.timestamp,
+        };
+    }
+}
+
+/**
+ * Query invoices from Vietnamese Tax Authority
+ * @param queryRequest Invoice query request with token and optional query parameters
+ * @returns Promise<InvoiceQueryResponse>
+ */
+export async function queryInvoices(
+    queryRequest: InvoiceQueryRequest
+): Promise<InvoiceQueryResponse> {
+    try {
+        const response = await fetch("/api/query-invoices", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+            },
+            body: JSON.stringify(queryRequest),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || `HTTP ${response.status}: ${response.statusText}`
+            );
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error querying invoices:", error);
+
+        // Create standardized error response
+        const queryError = {
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
+            type: getErrorType(error),
+            timestamp: new Date().toISOString(),
+        };
+
+        if (error instanceof TypeError && error.message.includes("fetch")) {
+            queryError.type = "network";
+            queryError.message = "Network error: Unable to connect to server";
+        }
+
+        return {
+            success: false,
+            data: null,
+            error: queryError.message,
+            timestamp: queryError.timestamp,
         };
     }
 }
