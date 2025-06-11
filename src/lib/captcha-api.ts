@@ -25,6 +25,39 @@ export interface CaptchaSolverResult {
     timestamp: string;
 }
 
+export interface CaptchaTokenResponse {
+    success: boolean;
+    key: string | null;
+    content: string | null;
+    timestamp: string;
+    data?: any;
+    error?: string;
+    type?: string;
+}
+
+export interface AuthenticationRequest {
+    ckey: string;
+    cvalue: string;
+    username: string;
+    password: string;
+}
+
+export interface AuthenticationResponse {
+    success: boolean;
+    data?: any;
+    token?: string;
+    error?: string;
+    status?: number;
+    statusText?: string;
+    details?: string;
+    timestamp?: string;
+    authPayload?: {
+        ckey: string;
+        cvalue: string;
+        username: string;
+    };
+}
+
 export interface CaptchaError {
     message: string;
     type: "network" | "server" | "parsing" | "unknown";
@@ -224,6 +257,113 @@ export async function solveCaptcha(
                     : "Unknown error occurred while solving captcha",
             timestamp: new Date().toISOString(),
             processingTime,
+        };
+    }
+}
+
+/**
+ * Fetch captcha token from Vietnamese tax authority via our API proxy
+ * @returns Promise<CaptchaTokenResponse>
+ */
+export async function fetchCaptchaToken(): Promise<CaptchaTokenResponse> {
+    try {
+        const response = await fetch("/api/capcha-token", {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                "Cache-Control": "no-cache",
+            },
+            // Disable caching to always get fresh token
+            cache: "no-store",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || `HTTP ${response.status}: ${response.statusText}`
+            );
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error fetching captcha token:", error);
+
+        // Create standardized error response
+        const tokenError = {
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
+            type: getErrorType(error),
+            timestamp: new Date().toISOString(),
+        };
+
+        if (error instanceof TypeError && error.message.includes("fetch")) {
+            tokenError.type = "network";
+            tokenError.message = "Network error: Unable to connect to server";
+        }
+
+        return {
+            success: false,
+            key: null,
+            content: null,
+            error: tokenError.message,
+            type: tokenError.type,
+            timestamp: tokenError.timestamp,
+        };
+    }
+}
+
+/**
+ * Authenticate with Vietnamese Tax Authority
+ * @param authRequest Authentication request with ckey, cvalue, username, password
+ * @returns Promise<AuthenticationResponse>
+ */
+export async function authenticateWithTaxAuthority(
+    authRequest: AuthenticationRequest
+): Promise<AuthenticationResponse> {
+    try {
+        const response = await fetch("/api/authenticate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+            },
+            body: JSON.stringify(authRequest),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || `HTTP ${response.status}: ${response.statusText}`
+            );
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error authenticating with tax authority:", error);
+
+        // Create standardized error response
+        const authError = {
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
+            type: getErrorType(error),
+            timestamp: new Date().toISOString(),
+        };
+
+        if (error instanceof TypeError && error.message.includes("fetch")) {
+            authError.type = "network";
+            authError.message = "Network error: Unable to connect to server";
+        }
+
+        return {
+            success: false,
+            error: authError.message,
+            timestamp: authError.timestamp,
         };
     }
 }

@@ -397,9 +397,172 @@ Successfully integrated the SVG captcha solving functionality into the existing 
 2. **Modified**: `src/app/captcha-fetcher/page.tsx` - Integrated solving functionality
 3. **Modified**: `docs/implementation-log.md` - This implementation log update
 
+## Phase 5: Login & Dashboard System with SVG Captcha Auto-Solver ✅ **COMPLETED**
+
+### Overview
+Successfully implemented a complete login and dashboard system that demonstrates the captcha-token API integration with automatic SVG captcha solving. The system provides a modern authentication flow that leads to a comprehensive dashboard displaying real-time data from the Vietnamese Tax Authority's captcha-token endpoint, automatically solving the SVG captcha and displaying the result prominently.
+
+## Phase 6: Vietnamese Tax Authority Authentication System ✅ **COMPLETED**
+
+### Overview
+Successfully implemented a complete authentication system that integrates with the Vietnamese Tax Authority's security-taxpayer/authenticate endpoint. The system provides end-to-end authentication flow including captcha fetching, automatic solving, credential submission, and token display with comprehensive error handling for Vietnamese Tax Authority responses.
+
+### What Was Implemented
+
+#### 1. Authentication API Route (`src/app/api/authenticate/route.ts`)
+- **Endpoint**: POST `/api/authenticate`
+- **Purpose**: Server-side proxy for Vietnamese Tax Authority authentication
+- **Target URL**: `https://hoadondientu.gdt.gov.vn:30000/security-taxpayer/authenticate`
+- **Request Body**: `{ckey, cvalue, username, password}`
+- **Features**:
+  - Comprehensive input validation for required fields
+  - Proper HTTP headers for Vietnamese Tax Authority compatibility
+  - User-Agent spoofing for better compatibility
+  - Detailed logging with sensitive data masking
+  - Vietnamese error message handling
+  - Token extraction from response
+  - CORS support for cross-origin requests
+  - Comprehensive error handling with proper HTTP status codes
+
+#### 2. Authentication Page (`src/app/authenticate/page.tsx`)
+- **Location**: `/authenticate` route in Next.js App Router
+- **Framework**: Next.js 15 with TypeScript and Tailwind CSS
+- **Complete Authentication Flow**:
+  - **Auto-Captcha Fetching**: Automatically fetches captcha on page load
+  - **Auto-Solving**: Automatically solves captcha using AI solver
+  - **Credential Form**: Username and password input with validation
+  - **Real-time Display**: Shows captcha key and solved value in real-time
+  - **Visual Captcha**: Displays actual captcha image for verification
+  - **Authentication Submission**: Sends complete authentication request
+  - **Token Display**: Prominently displays authentication token when successful
+  - **Error Handling**: Comprehensive error display with Vietnamese messages
+  - **Copy Functionality**: One-click copying of authentication tokens
+  - **Quick Actions**: Try again, navigate to dashboard, and other features
+
+#### 3. Enhanced Login Page (`src/app/login/page.tsx`)
+- **Location**: `/login` route in Next.js App Router
+- **Framework**: Next.js 15 with TypeScript and Tailwind CSS
+- **Features**:
+  - Modern, responsive login form with proper validation
+  - Loading states with animated spinners during authentication
+  - Form validation with required field handling
+  - Navigation to dashboard upon successful login
+  - Quick links to other application features
+  - Demo authentication (accepts any credentials)
+  - Dark mode support with consistent styling
+  - Accessibility compliance with proper labels and ARIA attributes
+
+#### 2. Enhanced Dashboard Page with SVG Captcha Auto-Solver (`src/app/dashboard/page.tsx`)
+- **Location**: `/dashboard` route in Next.js App Router
+- **Framework**: Next.js 15 with TypeScript and Tailwind CSS
+- **Core Features**:
+  - Real-time captcha token data fetching from `/api/capcha-token`
+  - Comprehensive display of JSON response with key and content fields
+  - Loading states with animated spinners
+  - Error handling with user-friendly error messages
+  - Refresh functionality to fetch new token data
+  - Raw JSON response viewer with syntax highlighting
+  - Quick navigation links to other application features
+  - Responsive design for all device sizes
+  - Dark mode support
+- **NEW: SVG Captcha Auto-Solver Features**:
+  - **Automatic SVG Solving**: Auto-solves captcha from `tokenData.content` when available
+  - **Visual SVG Preview**: Renders the actual captcha image using `dangerouslySetInnerHTML`
+  - **Prominent Solved Text Display**: Large, bold, centered display of solved captcha text
+  - **Copy to Clipboard**: One-click copying of solved text with visual feedback
+  - **Re-solve Functionality**: Manual re-solving button with loading states
+  - **Processing Time Display**: Shows solver performance metrics
+  - **Enhanced Metadata**: Includes "Solved" status in metadata grid (4-column layout)
+  - **Auto-solve on Load**: Automatically triggers solving when token content is available
+  - **Error Handling**: Comprehensive error handling for solving failures
+  - **State Management**: Separate state management for token solving operations
+
+#### 3. Enhanced Captcha Token API (`src/app/api/capcha-token/route.ts`)
+- **Purpose**: Server-side proxy for Vietnamese Tax Authority captcha-token endpoint
+- **Features**:
+  - Fetches from `https://hoadondientu.gdt.gov.vn:30000/captcha-token`
+  - Returns standardized JSON response with key and content fields
+  - Comprehensive error handling with proper HTTP status codes
+  - CORS support for cross-origin requests
+  - Cache prevention to ensure fresh token data
+  - User-Agent spoofing for better compatibility
+
+#### 4. Enhanced Captcha API Utilities (`src/lib/captcha-api.ts`)
+- **New Interface**: `CaptchaTokenResponse` for type safety
+- **New Function**: `fetchCaptchaToken()` for reusable token fetching
+- **Features**:
+  - Standardized error handling and response formatting
+  - Type-safe interfaces for all API responses
+  - Consistent error messaging across the application
+  - Network error detection and user-friendly messages
+
+### Technical Implementation Details
+
+#### Authentication Flow
+1. User accesses `/login` page
+2. Enters credentials (demo accepts any username/password)
+3. Loading state displays during authentication simulation
+4. Successful login redirects to `/dashboard`
+5. Dashboard automatically fetches and displays captcha token data
+
+#### Data Flow
+1. Dashboard component mounts and triggers `fetchCaptchaToken()`
+2. API call to `/api/capcha-token` endpoint
+3. Server-side proxy fetches from Vietnamese Tax Authority
+4. Response processed and returned as standardized JSON
+5. Dashboard displays key, content, and metadata
+6. User can refresh to fetch new token data
+
+#### Error Handling
+- Network errors with connection failure detection
+- Server errors with proper HTTP status code handling
+- Parsing errors for malformed responses
+- User-friendly error messages with actionable feedback
+- Loading states to prevent user confusion during API calls
+
+### Files Modified/Created
+
+1. **Created**: `src/app/login/page.tsx` - Modern login interface
+2. **Created**: `src/app/dashboard/page.tsx` - Comprehensive dashboard
+3. **Enhanced**: `src/app/api/capcha-token/route.ts` - Complete API implementation
+4. **Enhanced**: `src/lib/captcha-api.ts` - Added token fetching utilities
+5. **Updated**: `docs/prd.md` - Added Phase 5 requirements
+6. **Updated**: `docs/implementation-log.md` - This implementation documentation
+
+### Key Features Delivered
+
+1. **Modern Authentication UI**: Clean, responsive login form with proper validation
+2. **Real-time Data Display**: Live fetching and display of captcha token data
+3. **🆕 SVG Captcha Auto-Solver**: Automatic solving of SVG captcha from token content
+4. **🆕 Visual Captcha Preview**: Real-time rendering of SVG captcha images
+5. **🆕 Prominent Solved Text Display**: Large, bold, copy-friendly display of solved text
+6. **🆕 One-Click Copy**: Instant clipboard copying of solved captcha text
+7. **🆕 Re-solve Functionality**: Manual re-solving with loading states and error handling
+8. **Comprehensive Error Handling**: User-friendly error messages for all failure scenarios
+9. **Type Safety**: Full TypeScript integration with proper interfaces
+10. **Responsive Design**: Mobile-friendly interface with consistent styling
+11. **Dark Mode Support**: Seamless dark/light mode compatibility
+12. **Navigation Integration**: Smooth navigation between login, dashboard, and other features
+13. **API Integration**: Complete integration with Vietnamese Tax Authority endpoints
+14. **Performance Optimization**: Efficient data fetching with loading states
+15. **Accessibility Compliance**: Proper ARIA labels and keyboard navigation
+
+### Technical Achievements
+
+- **Next.js 15 App Router**: Modern routing with server and client components
+- **TypeScript Integration**: Full type safety with custom interfaces
+- **Tailwind CSS Styling**: Consistent design system following project conventions
+- **API Proxy Pattern**: Server-side proxy to handle CORS and security
+- **Error Boundary Pattern**: Comprehensive error handling at component level
+- **State Management**: Efficient React state management with hooks
+- **Performance Optimization**: Debounced API calls and loading state management
+
 ## Live Demo URLs
 
 - **Helper Functions Demo**: http://localhost:3000/helpers-demo
 - **SVG Captcha Solver**: http://localhost:3000/captcha-solver (✅ **FIXED - Now uses real algorithm**)
 - **Vietnamese Tax Authority Captcha Fetcher & Solver**: http://localhost:3000/captcha-fetcher (🚀 **ENHANCED - Now with integrated solving**)
-- **Home Page**: http://localhost:3000 (with navigation links to all demos)
+- **Login & Dashboard System**: http://localhost:3001/login (🆕 **NEW - Complete authentication flow**)
+- **Dashboard with SVG Auto-Solver**: http://localhost:3001/dashboard (🚀 **ENHANCED - Auto-solves captcha token content**)
+- **Vietnamese Tax Authority Authentication**: http://localhost:3001/authenticate (🆕 **NEW - Complete authentication flow**)
+- **Home Page**: http://localhost:3001 (with navigation links to all demos)

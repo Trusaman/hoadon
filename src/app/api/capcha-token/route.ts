@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
  * This handles CORS issues by acting as a server-side proxy
  */
 export async function GET(request: NextRequest) {
-    const tokenUrl = "https://hoadondientu.gdt.gov.vn:30000/captcha-token";
+    const tokenUrl = "https://hoadondientu.gdt.gov.vn:30000/captcha";
 
     try {
         // Add timestamp to prevent caching and get fresh token
