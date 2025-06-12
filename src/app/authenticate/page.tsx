@@ -14,6 +14,7 @@ import {
     type InvoiceQueryResponse,
 } from "@/lib/captcha-api";
 import sampleResult from "../../../sample-result.json";
+import { DateRangePicker } from "@/components/ui/date-picker";
 
 interface AuthenticationResponse {
     success: boolean;
@@ -65,7 +66,7 @@ export default function AuthenticatePage() {
 
     // Search parameters state
     const [searchParams, setSearchParams] = useState(() => {
-        const today = new Date().toISOString().split("T")[0];
+        const today = new Date();
         return {
             startDate: today,
             endDate: today,
@@ -274,10 +275,20 @@ export default function AuthenticatePage() {
         navigator.clipboard.writeText(text);
     };
 
-    // Helper function to convert YYYY-MM-DD to DD/MM/YYYY format
-    const formatDateForAPI = (dateString: string) => {
-        if (!dateString) return "";
-        const [year, month, day] = dateString.split("-");
+    // Helper function to convert Date to DD/MM/YYYY format
+    const formatDateForAPI = (date: Date | string) => {
+        if (!date) return "";
+
+        let dateObj: Date;
+        if (typeof date === "string") {
+            dateObj = new Date(date);
+        } else {
+            dateObj = date;
+        }
+
+        const day = dateObj.getDate().toString().padStart(2, "0");
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, "0");
+        const year = dateObj.getFullYear();
         return `${day}/${month}/${year}`;
     };
 
@@ -323,7 +334,7 @@ export default function AuthenticatePage() {
 
     // Helper function to reset search parameters
     const resetSearchParams = () => {
-        const today = new Date().toISOString().split("T")[0];
+        const today = new Date();
         setSearchParams({
             startDate: today,
             endDate: today,
@@ -794,52 +805,28 @@ export default function AuthenticatePage() {
                                     {/* Date Range */}
                                     <div className="md:col-span-2 lg:col-span-3">
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Date Range
+                                            📅 Date Range
                                         </label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                                    Start Date
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    value={
-                                                        searchParams.startDate
-                                                    }
-                                                    onChange={(e) =>
-                                                        setSearchParams(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                startDate:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                                    End Date
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    value={searchParams.endDate}
-                                                    onChange={(e) =>
-                                                        setSearchParams(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                endDate:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
-                                                />
-                                            </div>
-                                        </div>
+                                        <DateRangePicker
+                                            startDate={searchParams.startDate}
+                                            endDate={searchParams.endDate}
+                                            onStartDateSelect={(date) =>
+                                                setSearchParams((prev) => ({
+                                                    ...prev,
+                                                    startDate:
+                                                        date || new Date(),
+                                                }))
+                                            }
+                                            onEndDateSelect={(date) =>
+                                                setSearchParams((prev) => ({
+                                                    ...prev,
+                                                    endDate: date || new Date(),
+                                                }))
+                                            }
+                                            startPlaceholder="Select start date"
+                                            endPlaceholder="Select end date"
+                                            disabled={useSampleData}
+                                        />
                                     </div>
 
                                     {/* Status Filter */}
@@ -1360,6 +1347,7 @@ export default function AuthenticatePage() {
                                                                                                 {
                                                                                                     invoice.khhdon
                                                                                                 }
+
                                                                                                 -
                                                                                                 {
                                                                                                     invoice.shdon

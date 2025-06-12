@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * API route to query invoices from Vietnamese Tax Authority
  * Routes to different endpoints based on invoice status:
- * - Status 6 or 8: sco-query/invoices endpoint
- * - Status 5: query/invoices/purchase endpoint
+ * - Status 5 and 6: query/invoices/purchase endpoint
+ * - Status 8: sco-query/invoices/purchase endpoint
+ * - Other statuses: query/invoices/purchase endpoint
  */
 export async function POST(request: NextRequest) {
     try {
@@ -33,14 +34,39 @@ export async function POST(request: NextRequest) {
         // Merge with provided query parameters
         const finalParams = { ...defaultParams, ...queryParams };
 
+        // If a specific status is provided, ensure it's included in the search query
+        if (status && finalParams.search) {
+            // Check if the search query already contains a status filter (ttxly)
+            const searchParts = finalParams.search.split(";");
+            const hasStatusFilter = searchParts.some((part: string) =>
+                part.includes("ttxly==")
+            );
+
+            if (!hasStatusFilter) {
+                // Add the status filter to the search query
+                finalParams.search = `${finalParams.search};ttxly==${status}`;
+            } else {
+                // Replace existing status filter with the provided status
+                finalParams.search = searchParts
+                    .map((part: string) =>
+                        part.includes("ttxly==") ? `ttxly==${status}` : part
+                    )
+                    .join(";");
+            }
+        }
+
         // Determine the correct endpoint based on status
         let baseEndpoint: string;
-        if (status === "6" || status === "8") {
-            // For status 6 (Cục Thuế đã nhận không mã) or 8 (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền)
+        if (status === "8") {
+            // For status 8 (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền)
             baseEndpoint =
                 "https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/purchase";
+        } else if (status === "5" || status === "6") {
+            // For status 5 and 6 (Đã cấp mã hóa đơn), use the query/invoices/purchase endpoint
+            baseEndpoint =
+                "https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase";
         } else {
-            // For status 5 and other statuses, use the original working endpoint
+            // For other statuses or undefined status, use the query/invoices/purchase endpoint
             baseEndpoint =
                 "https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase";
         }
