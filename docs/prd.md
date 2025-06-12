@@ -191,12 +191,25 @@ src/app/helpers-demo/
 - **Features**:
   - **Conditional Endpoint Routing**: Automatically selects correct API endpoint based on status value
   - **Status 6 & 8 Support**: Routes to `sco-query/invoices` endpoint for statuses 6 and 8
-  - **Status 5 Support**: Routes to `query/invoices/purchase` endpoint for status 5 and others
+  - **Status 5 Support**: Routes to `query/invoices` endpoint for status 5
   - **Enhanced API Route**: Updated `/api/query-invoices` to accept status parameter
   - **Frontend Integration**: Authentication page passes current status to determine endpoint
   - **Comprehensive Logging**: Enhanced logging to track endpoint selection and status values
   - **Type Safety**: Updated TypeScript interfaces to support status-based routing
   - **Backward Compatibility**: Maintains compatibility with existing functionality
+
+### Phase 9: All Statuses Combined Query ✅ **COMPLETED**
+- **Objective**: Enable "All Statuses" option to query and combine results from multiple endpoints
+- **Features**:
+  - **Multi-Endpoint Querying**: Simultaneously queries statuses 5, 6, and 8 endpoints
+  - **Combined Results Display**: Aggregates and displays invoices from all status endpoints
+  - **Status Breakdown**: Shows count of invoices per status with color-coded indicators
+  - **Enhanced Table View**: Displays combined invoices with status column for identification
+  - **Parallel Processing**: Uses Promise.allSettled for efficient concurrent API calls
+  - **Error Resilience**: Continues to show results even if some endpoints fail
+  - **Total Count Aggregation**: Calculates and displays total invoice count across all statuses
+  - **Visual Status Indicators**: Color-coded status badges in the invoice table
+  - **Enhanced Summary**: Detailed breakdown showing invoices per status type
 
 ### Phase 3: Advanced Features
 - Performance monitoring integration

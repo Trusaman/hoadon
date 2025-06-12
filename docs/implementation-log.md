@@ -758,3 +758,94 @@ Enhanced the invoice query system to automatically route requests to different V
 
 **Completion Date**: January 2025
 **Feature**: Status-Based Endpoint Routing for Vietnamese Tax Authority Invoice Queries
+
+## Phase 9: All Statuses Combined Query Implementation
+
+### Overview
+Enhanced the invoice query system to support "All Statuses" option, which simultaneously queries multiple Vietnamese Tax Authority endpoints (statuses 5, 6, and 8) and combines the results into a unified display.
+
+### Implementation Details
+
+#### Multi-Endpoint Query Logic
+- **Parallel Processing**: Uses `Promise.allSettled()` to query all three endpoints concurrently
+- **Status 5**: Routes to `https://hoadondientu.gdt.gov.vn:30000/query/invoices`
+- **Status 6**: Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
+- **Status 8**: Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
+- **Error Resilience**: Continues to display results even if some endpoints fail
+
+#### Technical Changes
+
+##### 1. New Combined Query Function (`src/lib/captcha-api.ts`)
+- **New Function**: `queryAllStatusInvoices()` for multi-endpoint querying
+- **Enhanced Interface**: Extended `InvoiceQueryResponse` with `combinedResults` field
+- **Parallel Processing**: Efficient concurrent API calls with error handling
+- **Data Aggregation**: Combines results from multiple endpoints with proper counting
+
+##### 2. Frontend Enhancement (`src/app/authenticate/page.tsx`)
+- **Conditional Logic**: Detects "All Statuses" selection (empty status value)
+- **Helper Function**: `getAllInvoicesFromCombined()` to flatten combined results
+- **Enhanced Display**: Updated invoice summary and table for combined results
+- **Status Indicators**: Color-coded status badges in invoice table
+
+##### 3. Enhanced UI Components
+- **Status Breakdown**: Visual breakdown showing invoices per status type
+- **Combined Summary**: Total count aggregation across all endpoints
+- **Enhanced Table**: Additional status column for combined results
+- **Color Coding**: Blue for Status 5, Green for Status 6, Orange for Status 8
+
+#### Key Features Delivered
+
+1. **Multi-Endpoint Querying**: Simultaneous queries to all relevant endpoints
+2. **Combined Results Display**: Unified view of invoices from all statuses
+3. **Status Breakdown**: Visual breakdown of invoice counts per status
+4. **Enhanced Table View**: Status column with color-coded indicators
+5. **Error Resilience**: Graceful handling of partial endpoint failures
+6. **Performance Optimization**: Parallel processing for faster results
+7. **User Experience**: Seamless "All Statuses" option functionality
+
+#### Files Modified
+
+1. **Enhanced**: `src/lib/captcha-api.ts` - Added `queryAllStatusInvoices()` function
+2. **Enhanced**: `src/app/authenticate/page.tsx` - Added combined results handling
+3. **Enhanced**: `src/app/api/query-invoices/route.ts` - Fixed endpoint routing for status 5
+4. **Updated**: `docs/prd.md` - Added Phase 9 requirements
+5. **Updated**: `docs/implementation-log.md` - This implementation documentation
+
+### User Experience Flow
+
+#### All Statuses Selection
+1. User selects "All Statuses" from status dropdown (empty value)
+2. System detects empty status and triggers `queryAllStatusInvoices()`
+3. Three parallel API calls are made to different endpoints
+4. Results are combined and displayed with status breakdown
+5. Invoice table shows all invoices with status indicators
+
+#### Enhanced Display Features
+- **Summary Cards**: Show total count and breakdown by status
+- **Status Badges**: Color-coded indicators in invoice table
+- **Combined View**: Single table showing all invoices regardless of status
+- **Error Handling**: Partial results displayed even if some endpoints fail
+
+### Testing Verification
+
+#### Multi-Endpoint Testing
+- ✅ Parallel queries to all three endpoints work correctly
+- ✅ Results are properly combined and aggregated
+- ✅ Status indicators display correctly in table
+- ✅ Error handling works for partial endpoint failures
+
+#### UI/UX Testing
+- ✅ "All Statuses" option triggers combined query
+- ✅ Status breakdown displays correct counts
+- ✅ Color-coded status badges work properly
+- ✅ Table layout accommodates additional status column
+
+#### Performance Testing
+- ✅ Parallel processing improves query speed
+- ✅ Large result sets display properly
+- ✅ Memory usage remains reasonable with combined results
+
+### Implementation Status: COMPLETED ✅
+
+**Completion Date**: January 2025
+**Feature**: All Statuses Combined Query for Vietnamese Tax Authority Invoice System

@@ -79,6 +79,13 @@ export interface InvoiceQueryResponse {
     queryParams?: any;
     url?: string;
     contentType?: string;
+    combinedResults?: {
+        status5?: any;
+        status6?: any;
+        status8?: any;
+        totalCount?: number;
+        endpoints?: string[];
+    };
 }
 
 export interface CaptchaError {
@@ -441,6 +448,92 @@ export async function queryInvoices(
             data: null,
             error: queryError.message,
             timestamp: queryError.timestamp,
+        };
+    }
+}
+
+/**
+ * Query invoices from all status endpoints (5, 6, 8) and combine results
+ * @param queryRequest Invoice query request with token and optional query parameters
+ * @returns Promise<InvoiceQueryResponse>
+ */
+export async function queryAllStatusInvoices(
+    queryRequest: InvoiceQueryRequest
+): Promise<InvoiceQueryResponse> {
+    try {
+        const statuses = ["5", "6", "8"];
+        const promises = statuses.map((status) =>
+            queryInvoices({
+                ...queryRequest,
+                status,
+            })
+        );
+
+        const results = await Promise.allSettled(promises);
+        const combinedData: any = {
+            status5: null,
+            status6: null,
+            status8: null,
+            totalCount: 0,
+            endpoints: [],
+        };
+
+        let hasSuccessfulResult = false;
+        const errors: string[] = [];
+
+        results.forEach((result, index) => {
+            const status = statuses[index];
+            if (result.status === "fulfilled" && result.value.success) {
+                hasSuccessfulResult = true;
+                combinedData[`status${status}` as keyof typeof combinedData] =
+                    result.value.data;
+                combinedData.endpoints.push(
+                    result.value.url || `status-${status}-endpoint`
+                );
+
+                // Count items if data is an array or has a count property
+                if (Array.isArray(result.value.data)) {
+                    combinedData.totalCount += result.value.data.length;
+                } else if (
+                    result.value.data?.content &&
+                    Array.isArray(result.value.data.content)
+                ) {
+                    combinedData.totalCount += result.value.data.content.length;
+                } else if (result.value.data?.totalElements) {
+                    combinedData.totalCount += result.value.data.totalElements;
+                }
+            } else if (result.status === "fulfilled" && !result.value.success) {
+                errors.push(`Status ${status}: ${result.value.error}`);
+            } else if (result.status === "rejected") {
+                errors.push(`Status ${status}: ${result.reason}`);
+            }
+        });
+
+        if (!hasSuccessfulResult) {
+            return {
+                success: false,
+                error: `All status queries failed: ${errors.join("; ")}`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+
+        return {
+            success: true,
+            data: combinedData,
+            combinedResults: combinedData,
+            timestamp: new Date().toISOString(),
+            status: 200,
+        };
+    } catch (error) {
+        console.error("Error querying all status invoices:", error);
+
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
+            timestamp: new Date().toISOString(),
         };
     }
 }
