@@ -183,7 +183,7 @@ export default function AuthenticatePage() {
                 queryParams: {
                     sort: "tdlap:desc,khmshdon:asc,shdon:desc",
                     size: "15",
-                    search: "tdlap=ge=06/01/2025T00:00:00;tdlap=le=07/01/2025T23:59:59;ttxly==5",
+                    search: "tdlap=ge=11/06/2025T00:00:00;tdlap=le=11/06/2025T23:59:59;ttxly==5",
                 },
             });
 
@@ -571,7 +571,7 @@ export default function AuthenticatePage() {
                                             Tax Authority using your
                                             authenticated token. This will
                                             search for invoices from 06/01/2025
-                                            to 07/01/2025 with status 5.
+                                            to 06/01/2025 with status 5.
                                         </p>
                                     </div>
 

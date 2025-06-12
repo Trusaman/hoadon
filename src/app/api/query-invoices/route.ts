@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         const defaultParams = {
             sort: "tdlap:desc,khmshdon:asc,shdon:desc",
             size: "15",
-            search: "tdlap=ge=06/01/2025T00:00:00;tdlap=le=07/01/2025T23:59:59;ttxly==5",
+            search: "tdlap=ge=06/01/2025T00:00:00;tdlap=le=06/01/2025T23:59:59;ttxly==5",
         };
 
         // Merge with provided query parameters
