@@ -39,12 +39,8 @@ export async function POST(request: NextRequest) {
             // For status 6 (Cục Thuế đã nhận không mã) or 8 (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền)
             baseEndpoint =
                 "https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/purchase";
-        } else if (status === "5") {
-            // For status 5, use the query/invoices endpoint
-            baseEndpoint =
-                "https://hoadondientu.gdt.gov.vn:30000/query/invoices";
         } else {
-            // For other statuses, use the original endpoint
+            // For status 5 and other statuses, use the original working endpoint
             baseEndpoint =
                 "https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase";
         }

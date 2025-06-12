@@ -190,8 +190,8 @@ src/app/helpers-demo/
 - **Objective**: Route invoice queries to different Vietnamese Tax Authority endpoints based on invoice status
 - **Features**:
   - **Conditional Endpoint Routing**: Automatically selects correct API endpoint based on status value
-  - **Status 6 & 8 Support**: Routes to `sco-query/invoices` endpoint for statuses 6 and 8
-  - **Status 5 Support**: Routes to `query/invoices` endpoint for status 5
+  - **Status 6 & 8 Support**: Routes to `sco-query/invoices/purchase` endpoint for statuses 6 and 8
+  - **Status 5 Support**: Routes to `query/invoices/purchase` endpoint for status 5
   - **Enhanced API Route**: Updated `/api/query-invoices` to accept status parameter
   - **Frontend Integration**: Authentication page passes current status to determine endpoint
   - **Comprehensive Logging**: Enhanced logging to track endpoint selection and status values

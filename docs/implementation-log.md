@@ -698,8 +698,8 @@ Enhanced the invoice query system to automatically route requests to different V
 ### Implementation Details
 
 #### Endpoint Routing Logic
-- **Status 6** (Cục Thuế đã nhận không mã): Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
-- **Status 8** (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền): Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
+- **Status 6** (Cục Thuế đã nhận không mã): Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/purchase`
+- **Status 8** (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền): Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/purchase`
 - **Status 5** and others: Routes to `https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase`
 
 #### Technical Changes
@@ -768,9 +768,9 @@ Enhanced the invoice query system to support "All Statuses" option, which simult
 
 #### Multi-Endpoint Query Logic
 - **Parallel Processing**: Uses `Promise.allSettled()` to query all three endpoints concurrently
-- **Status 5**: Routes to `https://hoadondientu.gdt.gov.vn:30000/query/invoices`
-- **Status 6**: Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
-- **Status 8**: Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
+- **Status 5**: Routes to `https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase`
+- **Status 6**: Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/purchase`
+- **Status 8**: Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/purchase`
 - **Error Resilience**: Continues to display results even if some endpoints fail
 
 #### Technical Changes
