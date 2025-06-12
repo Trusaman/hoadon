@@ -186,6 +186,18 @@ src/app/helpers-demo/
   - **Raw Data Viewer**: Complete invoice response inspection
   - **Loading States**: Visual feedback during invoice query processing
 
+### Phase 8: Status-Based Endpoint Routing ✅ **COMPLETED**
+- **Objective**: Route invoice queries to different Vietnamese Tax Authority endpoints based on invoice status
+- **Features**:
+  - **Conditional Endpoint Routing**: Automatically selects correct API endpoint based on status value
+  - **Status 6 & 8 Support**: Routes to `sco-query/invoices` endpoint for statuses 6 and 8
+  - **Status 5 Support**: Routes to `query/invoices/purchase` endpoint for status 5 and others
+  - **Enhanced API Route**: Updated `/api/query-invoices` to accept status parameter
+  - **Frontend Integration**: Authentication page passes current status to determine endpoint
+  - **Comprehensive Logging**: Enhanced logging to track endpoint selection and status values
+  - **Type Safety**: Updated TypeScript interfaces to support status-based routing
+  - **Backward Compatibility**: Maintains compatibility with existing functionality
+
 ### Phase 3: Advanced Features
 - Performance monitoring integration
 - Interactive code editor

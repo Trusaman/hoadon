@@ -60,7 +60,7 @@ export default function AuthenticatePage() {
     const [invoiceResult, setInvoiceResult] =
         useState<InvoiceQueryResponse | null>(null);
     const [invoiceError, setInvoiceError] = useState<string | null>(null);
-    const [useSampleData, setUseSampleData] = useState(true);
+    const [useSampleData, setUseSampleData] = useState(false);
 
     // Search parameters state
     const [searchParams, setSearchParams] = useState(() => {
@@ -213,6 +213,7 @@ export default function AuthenticatePage() {
                 const searchQuery = buildSearchQuery();
                 const response = await queryInvoices({
                     token: authResult!.token!,
+                    status: searchParams.status, // Pass the current status to determine endpoint
                     queryParams: {
                         sort: "tdlap:desc,khmshdon:asc,shdon:desc",
                         size: "15",
@@ -792,6 +793,7 @@ export default function AuthenticatePage() {
                                             Status
                                         </label>
                                         <select
+                                            aria-label="Invoice Status"
                                             value={searchParams.status}
                                             onChange={(e) =>
                                                 setSearchParams((prev) => ({
@@ -815,10 +817,14 @@ export default function AuthenticatePage() {
                                                 Rejected (4)
                                             </option>
                                             <option value="5">
-                                                Processed (5)
+                                                Đã cấp mã hóa đơn (5)
                                             </option>
                                             <option value="6">
-                                                Cancelled (6)
+                                                Cục Thuế đã nhận không mã (6)
+                                            </option>
+                                            <option value="8">
+                                                Cục Thuế đã nhận hóa đơn có mã
+                                                khởi tạo từ máy tính tiền (8)
                                             </option>
                                         </select>
                                     </div>

@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * API route to query invoices from Vietnamese Tax Authority
- * Sends POST request to query/invoices/purchase endpoint with authentication token
+ * Routes to different endpoints based on invoice status:
+ * - Status 6 or 8: sco-query/invoices endpoint
+ * - Status 5: query/invoices/purchase endpoint
  */
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { token, queryParams } = body;
+        const { token, queryParams, status } = body;
 
         // Validate required fields
         if (!token) {
@@ -31,12 +33,26 @@ export async function POST(request: NextRequest) {
         // Merge with provided query parameters
         const finalParams = { ...defaultParams, ...queryParams };
 
+        // Determine the correct endpoint based on status
+        let baseEndpoint: string;
+        if (status === "6" || status === "8") {
+            // For status 6 (Cục Thuế đã nhận không mã) or 8 (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền)
+            baseEndpoint =
+                "https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/purchase";
+        } else {
+            // For status 5 and other statuses, use the original endpoint
+            baseEndpoint =
+                "https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase";
+        }
+
         // Build query string
         const queryString = new URLSearchParams(finalParams).toString();
-        const invoiceUrl = `https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase?${queryString}`;
+        const invoiceUrl = `${baseEndpoint}?${queryString}`;
 
         console.log("Querying invoices from Vietnamese Tax Authority:", {
             url: invoiceUrl,
+            baseEndpoint,
+            status,
             hasToken: !!token,
             tokenLength: token.length,
             queryParams: finalParams,

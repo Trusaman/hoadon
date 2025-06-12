@@ -60,6 +60,7 @@ export interface AuthenticationResponse {
 
 export interface InvoiceQueryRequest {
     token: string;
+    status?: string; // Invoice status to determine which endpoint to use
     queryParams?: {
         sort?: string;
         size?: string;

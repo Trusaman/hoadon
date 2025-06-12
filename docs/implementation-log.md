@@ -689,3 +689,72 @@ The invoice query API route was using POST method to query invoices, but the Vie
 - **Dashboard with SVG Auto-Solver**: http://localhost:3001/dashboard (🚀 **ENHANCED - Auto-solves captcha token content**)
 - **Vietnamese Tax Authority Authentication**: http://localhost:3001/authenticate (🆕 **NEW - Complete authentication flow**)
 - **Home Page**: http://localhost:3001 (with navigation links to all demos)
+
+## Phase 8: Status-Based Endpoint Routing Implementation
+
+### Overview
+Enhanced the invoice query system to automatically route requests to different Vietnamese Tax Authority endpoints based on the selected invoice status. This ensures proper API compatibility for different invoice types.
+
+### Implementation Details
+
+#### Endpoint Routing Logic
+- **Status 6** (Cục Thuế đã nhận không mã): Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
+- **Status 8** (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền): Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices`
+- **Status 5** and others: Routes to `https://hoadondientu.gdt.gov.vn:30000/query/invoices/purchase`
+
+#### Technical Changes
+
+##### 1. API Route Enhancement (`src/app/api/query-invoices/route.ts`)
+- **New Parameter**: Added `status` parameter to request body
+- **Conditional Routing**: Implemented logic to select endpoint based on status value
+- **Enhanced Logging**: Added status and endpoint information to console logs
+- **Backward Compatibility**: Maintains existing functionality for status 5 and undefined status
+
+##### 2. Type Interface Updates (`src/lib/captcha-api.ts`)
+- **Enhanced Interface**: Added optional `status` field to `InvoiceQueryRequest`
+- **Type Safety**: Maintains full TypeScript support for new parameter
+
+##### 3. Frontend Integration (`src/app/authenticate/page.tsx`)
+- **Status Passing**: Modified invoice query call to include current status value
+- **Seamless Integration**: No UI changes required, works with existing status selection
+
+#### Key Features Delivered
+
+1. **Automatic Endpoint Selection**: System automatically chooses correct API endpoint
+2. **Status-Aware Routing**: Different invoice statuses route to appropriate endpoints
+3. **Enhanced Logging**: Detailed logging for debugging and monitoring
+4. **Type Safety**: Full TypeScript support for new functionality
+5. **Backward Compatibility**: Existing functionality remains unchanged
+6. **Error Handling**: Proper error handling for all endpoint scenarios
+
+#### Files Modified
+
+1. **Modified**: `src/app/api/query-invoices/route.ts` - Added status-based endpoint routing
+2. **Modified**: `src/lib/captcha-api.ts` - Enhanced InvoiceQueryRequest interface
+3. **Modified**: `src/app/authenticate/page.tsx` - Pass status to query function
+4. **Updated**: `docs/prd.md` - Added Phase 8 requirements
+5. **Updated**: `docs/implementation-log.md` - This implementation documentation
+
+### Testing Verification
+
+#### Status 6 & 8 Testing
+- ✅ Requests route to `sco-query/invoices` endpoint
+- ✅ Proper query parameters passed to new endpoint
+- ✅ Authentication token correctly included
+- ✅ Response handling works for new endpoint
+
+#### Status 5 Testing
+- ✅ Requests continue to route to `query/invoices/purchase` endpoint
+- ✅ Existing functionality preserved
+- ✅ No breaking changes to current workflow
+
+#### General Testing
+- ✅ Console logging shows correct endpoint selection
+- ✅ Status parameter properly passed through API chain
+- ✅ TypeScript compilation successful with no errors
+- ✅ UI remains unchanged and functional
+
+### Implementation Status: COMPLETED ✅
+
+**Completion Date**: January 2025
+**Feature**: Status-Based Endpoint Routing for Vietnamese Tax Authority Invoice Queries
