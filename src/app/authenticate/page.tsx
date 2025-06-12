@@ -62,6 +62,20 @@ export default function AuthenticatePage() {
     const [invoiceError, setInvoiceError] = useState<string | null>(null);
     const [useSampleData, setUseSampleData] = useState(true);
 
+    // Search parameters state
+    const [searchParams, setSearchParams] = useState(() => {
+        const today = new Date().toISOString().split("T")[0];
+        return {
+            startDate: today,
+            endDate: today,
+            status: "5",
+            invoiceNumber: "",
+            sellerTaxId: "",
+            minAmount: "",
+            maxAmount: "",
+        };
+    });
+
     // Fetch captcha
     const handleFetchCaptcha = async () => {
         setCaptchaLoading(true);
@@ -196,12 +210,13 @@ export default function AuthenticatePage() {
 
                 setInvoiceResult(response);
             } else {
+                const searchQuery = buildSearchQuery();
                 const response = await queryInvoices({
                     token: authResult!.token!,
                     queryParams: {
                         sort: "tdlap:desc,khmshdon:asc,shdon:desc",
                         size: "15",
-                        search: "tdlap=ge=11/06/2025T00:00:00;tdlap=le=11/06/2025T23:59:59;ttxly==5",
+                        search: searchQuery,
                     },
                 });
 
@@ -229,6 +244,67 @@ export default function AuthenticatePage() {
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
+    };
+
+    // Helper function to convert YYYY-MM-DD to DD/MM/YYYY format
+    const formatDateForAPI = (dateString: string) => {
+        if (!dateString) return "";
+        const [year, month, day] = dateString.split("-");
+        return `${day}/${month}/${year}`;
+    };
+
+    // Helper function to build search query string
+    const buildSearchQuery = () => {
+        const searchParts: string[] = [];
+
+        // Date range - Vietnamese Tax Authority expects DD/MM/YYYY format
+        if (searchParams.startDate) {
+            const formattedDate = formatDateForAPI(searchParams.startDate);
+            searchParts.push(`tdlap=ge=${formattedDate}T00:00:00`);
+        }
+        if (searchParams.endDate) {
+            const formattedDate = formatDateForAPI(searchParams.endDate);
+            searchParts.push(`tdlap=le=${formattedDate}T23:59:59`);
+        }
+
+        // Status filter
+        if (searchParams.status) {
+            searchParts.push(`ttxly==${searchParams.status}`);
+        }
+
+        // Invoice number
+        if (searchParams.invoiceNumber) {
+            searchParts.push(`shdon==${searchParams.invoiceNumber}`);
+        }
+
+        // Seller tax ID
+        if (searchParams.sellerTaxId) {
+            searchParts.push(`nbmst==${searchParams.sellerTaxId}`);
+        }
+
+        // Amount range
+        if (searchParams.minAmount) {
+            searchParts.push(`tgtttbso=ge=${searchParams.minAmount}`);
+        }
+        if (searchParams.maxAmount) {
+            searchParts.push(`tgtttbso=le=${searchParams.maxAmount}`);
+        }
+
+        return searchParts.join(";");
+    };
+
+    // Helper function to reset search parameters
+    const resetSearchParams = () => {
+        const today = new Date().toISOString().split("T")[0];
+        setSearchParams({
+            startDate: today,
+            endDate: today,
+            status: "5",
+            invoiceNumber: "",
+            sellerTaxId: "",
+            minAmount: "",
+            maxAmount: "",
+        });
     };
 
     return (
@@ -572,432 +648,650 @@ export default function AuthenticatePage() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                )}
 
-                        {/* Invoice Query Section */}
-                        {(useSampleData ||
-                            (authResult?.success && authResult?.token)) && (
-                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                                    📄 Query Invoices
-                                    <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 text-sm rounded-full">
-                                        Vietnamese Tax Portal
-                                    </span>
-                                </h2>
+                {/* Invoice Query Section */}
+                {(useSampleData ||
+                    (authResult?.success && authResult?.token)) && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                            📄 Query Invoices
+                            <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 text-sm rounded-full">
+                                Vietnamese Tax Portal
+                            </span>
+                        </h2>
 
-                                <div className="space-y-4">
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                                        <p className="text-blue-800 dark:text-blue-200 text-sm">
-                                            Query invoices from the Vietnamese
-                                            Tax Authority using your
-                                            authenticated token. This will
-                                            search for invoices from 06/01/2025
-                                            to 06/01/2025 with status 5.
+                        <div className="space-y-4">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                                <p className="text-blue-800 dark:text-blue-200 text-sm">
+                                    Query invoices from the Vietnamese Tax
+                                    Authority using your authenticated token.
+                                    Configure the search parameters below to
+                                    filter invoices by date range, status,
+                                    invoice number, seller tax ID, and amount
+                                    range.
+                                </p>
+                            </div>
+
+                            {/* Data Source Toggle */}
+                            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="text-yellow-800 dark:text-yellow-200 font-medium">
+                                            📊 Data Source
+                                        </h4>
+                                        <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-1">
+                                            {useSampleData
+                                                ? "Using sample data from sample-result.json"
+                                                : "Using live API data from Vietnamese Tax Authority"}
                                         </p>
                                     </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={useSampleData}
+                                            onChange={(e) =>
+                                                setUseSampleData(
+                                                    e.target.checked
+                                                )
+                                            }
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        <span className="ml-3 text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                            {useSampleData
+                                                ? "Sample Data"
+                                                : "Live API"}
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
 
-                                    {/* Data Source Toggle */}
-                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
-                                        <div className="flex items-center justify-between">
+                            {/* Search Parameters */}
+                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-gray-800 dark:text-gray-200 font-medium">
+                                        🔍 Search Parameters
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        onClick={resetSearchParams}
+                                        className="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+
+                                {useSampleData && (
+                                    <div className="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 mb-4">
+                                        <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                                            ⚠️ Note: Search filters don't affect
+                                            sample data results. Switch to "Live
+                                            API" to use custom search
+                                            parameters.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {/* Date Range */}
+                                    <div className="md:col-span-2 lg:col-span-3">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Date Range
+                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div>
-                                                <h4 className="text-yellow-800 dark:text-yellow-200 font-medium">
-                                                    📊 Data Source
-                                                </h4>
-                                                <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-1">
-                                                    {useSampleData
-                                                        ? "Using sample data from sample-result.json"
-                                                        : "Using live API data from Vietnamese Tax Authority"}
-                                                </p>
-                                            </div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                                    Start Date
+                                                </label>
                                                 <input
-                                                    type="checkbox"
-                                                    checked={useSampleData}
+                                                    type="date"
+                                                    value={
+                                                        searchParams.startDate
+                                                    }
                                                     onChange={(e) =>
-                                                        setUseSampleData(
-                                                            e.target.checked
+                                                        setSearchParams(
+                                                            (prev) => ({
+                                                                ...prev,
+                                                                startDate:
+                                                                    e.target
+                                                                        .value,
+                                                            })
                                                         )
                                                     }
-                                                    className="sr-only peer"
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                                                 />
-                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                                <span className="ml-3 text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                                                    {useSampleData
-                                                        ? "Sample Data"
-                                                        : "Live API"}
-                                                </span>
-                                            </label>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                                    End Date
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    value={searchParams.endDate}
+                                                    onChange={(e) =>
+                                                        setSearchParams(
+                                                            (prev) => ({
+                                                                ...prev,
+                                                                endDate:
+                                                                    e.target
+                                                                        .value,
+                                                            })
+                                                        )
+                                                    }
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <button
-                                        type="button"
-                                        onClick={handleQueryInvoices}
-                                        disabled={queryingInvoices}
-                                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                                    >
-                                        {queryingInvoices ? (
-                                            <>
-                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                                Querying Invoices...
-                                            </>
-                                        ) : (
-                                            <>📄 Query Invoices</>
-                                        )}
-                                    </button>
+                                    {/* Status Filter */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Status
+                                        </label>
+                                        <select
+                                            value={searchParams.status}
+                                            onChange={(e) =>
+                                                setSearchParams((prev) => ({
+                                                    ...prev,
+                                                    status: e.target.value,
+                                                }))
+                                            }
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                                        >
+                                            <option value="">
+                                                All Statuses
+                                            </option>
+                                            <option value="1">Draft (1)</option>
+                                            <option value="2">
+                                                Pending (2)
+                                            </option>
+                                            <option value="3">
+                                                Approved (3)
+                                            </option>
+                                            <option value="4">
+                                                Rejected (4)
+                                            </option>
+                                            <option value="5">
+                                                Processed (5)
+                                            </option>
+                                            <option value="6">
+                                                Cancelled (6)
+                                            </option>
+                                        </select>
+                                    </div>
 
-                                    {/* Invoice Error Display */}
-                                    {invoiceError && (
-                                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                                            <div className="flex items-center">
-                                                <span className="text-red-600 dark:text-red-400 text-xl mr-3">
-                                                    ❌
-                                                </span>
-                                                <div>
-                                                    <h3 className="text-red-800 dark:text-red-200 font-semibold">
-                                                        Invoice Query Failed
-                                                    </h3>
-                                                    <p className="text-red-600 dark:text-red-400 mt-1">
-                                                        {invoiceError}
-                                                    </p>
-                                                </div>
+                                    {/* Invoice Number */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Invoice Number
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={searchParams.invoiceNumber}
+                                            onChange={(e) =>
+                                                setSearchParams((prev) => ({
+                                                    ...prev,
+                                                    invoiceNumber:
+                                                        e.target.value,
+                                                }))
+                                            }
+                                            placeholder="e.g., 267806"
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Seller Tax ID */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Seller Tax ID (MST)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={searchParams.sellerTaxId}
+                                            onChange={(e) =>
+                                                setSearchParams((prev) => ({
+                                                    ...prev,
+                                                    sellerTaxId: e.target.value,
+                                                }))
+                                            }
+                                            placeholder="e.g., 0108930466"
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Amount Range */}
+                                    <div className="md:col-span-2 lg:col-span-3">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Amount Range (VND)
+                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                                    Minimum Amount
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={
+                                                        searchParams.minAmount
+                                                    }
+                                                    onChange={(e) =>
+                                                        setSearchParams(
+                                                            (prev) => ({
+                                                                ...prev,
+                                                                minAmount:
+                                                                    e.target
+                                                                        .value,
+                                                            })
+                                                        )
+                                                    }
+                                                    placeholder="e.g., 100000"
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                                    Maximum Amount
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={
+                                                        searchParams.maxAmount
+                                                    }
+                                                    onChange={(e) =>
+                                                        setSearchParams(
+                                                            (prev) => ({
+                                                                ...prev,
+                                                                maxAmount:
+                                                                    e.target
+                                                                        .value,
+                                                            })
+                                                        )
+                                                    }
+                                                    placeholder="e.g., 10000000"
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                                                />
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
+                                </div>
 
-                                    {/* Invoice Results Display */}
-                                    {invoiceResult && (
-                                        <div className="space-y-4">
-                                            <div
+                                {/* Current Search Query Preview */}
+                                {!useSampleData && (
+                                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                        <label className="block text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                                            Generated Search Query:
+                                        </label>
+                                        <code className="text-xs text-blue-800 dark:text-blue-200 break-all">
+                                            {buildSearchQuery() ||
+                                                "No search parameters set"}
+                                        </code>
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleQueryInvoices}
+                                disabled={queryingInvoices}
+                                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                            >
+                                {queryingInvoices ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                        Querying Invoices...
+                                    </>
+                                ) : (
+                                    <>📄 Query Invoices</>
+                                )}
+                            </button>
+
+                            {/* Invoice Error Display */}
+                            {invoiceError && (
+                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                                    <div className="flex items-center">
+                                        <span className="text-red-600 dark:text-red-400 text-xl mr-3">
+                                            ❌
+                                        </span>
+                                        <div>
+                                            <h3 className="text-red-800 dark:text-red-200 font-semibold">
+                                                Invoice Query Failed
+                                            </h3>
+                                            <p className="text-red-600 dark:text-red-400 mt-1">
+                                                {invoiceError}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Invoice Results Display */}
+                            {invoiceResult && (
+                                <div className="space-y-4">
+                                    <div
+                                        className={cn(
+                                            "rounded-lg p-4 border",
+                                            invoiceResult.success
+                                                ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                                                : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                                        )}
+                                    >
+                                        <div className="flex items-center">
+                                            <span
                                                 className={cn(
-                                                    "rounded-lg p-4 border",
+                                                    "text-xl mr-3",
                                                     invoiceResult.success
-                                                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                                                        : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                                                        ? "text-green-600 dark:text-green-400"
+                                                        : "text-red-600 dark:text-red-400"
                                                 )}
                                             >
-                                                <div className="flex items-center">
-                                                    <span
-                                                        className={cn(
-                                                            "text-xl mr-3",
-                                                            invoiceResult.success
-                                                                ? "text-green-600 dark:text-green-400"
-                                                                : "text-red-600 dark:text-red-400"
-                                                        )}
-                                                    >
-                                                        {invoiceResult.success
-                                                            ? "✅"
-                                                            : "❌"}
-                                                    </span>
-                                                    <div>
-                                                        <h3
-                                                            className={cn(
-                                                                "font-semibold",
-                                                                invoiceResult.success
-                                                                    ? "text-green-800 dark:text-green-200"
-                                                                    : "text-red-800 dark:text-red-200"
-                                                            )}
-                                                        >
-                                                            {invoiceResult.success
-                                                                ? "Invoice Query Successful!"
-                                                                : "Invoice Query Failed"}
-                                                        </h3>
-                                                        <p
-                                                            className={cn(
-                                                                "text-sm mt-1",
-                                                                invoiceResult.success
-                                                                    ? "text-green-600 dark:text-green-400"
-                                                                    : "text-red-600 dark:text-red-400"
-                                                            )}
-                                                        >
-                                                            {invoiceResult.success
-                                                                ? "Successfully retrieved invoice data from Vietnamese Tax Authority"
-                                                                : invoiceResult.error ||
-                                                                  "Invoice query request failed"}
-                                                        </p>
-                                                    </div>
-                                                </div>
+                                                {invoiceResult.success
+                                                    ? "✅"
+                                                    : "❌"}
+                                            </span>
+                                            <div>
+                                                <h3
+                                                    className={cn(
+                                                        "font-semibold",
+                                                        invoiceResult.success
+                                                            ? "text-green-800 dark:text-green-200"
+                                                            : "text-red-800 dark:text-red-200"
+                                                    )}
+                                                >
+                                                    {invoiceResult.success
+                                                        ? "Invoice Query Successful!"
+                                                        : "Invoice Query Failed"}
+                                                </h3>
+                                                <p
+                                                    className={cn(
+                                                        "text-sm mt-1",
+                                                        invoiceResult.success
+                                                            ? "text-green-600 dark:text-green-400"
+                                                            : "text-red-600 dark:text-red-400"
+                                                    )}
+                                                >
+                                                    {invoiceResult.success
+                                                        ? "Successfully retrieved invoice data from Vietnamese Tax Authority"
+                                                        : invoiceResult.error ||
+                                                          "Invoice query request failed"}
+                                                </p>
                                             </div>
+                                        </div>
+                                    </div>
 
-                                            {/* Invoice Data Display */}
-                                            {invoiceResult.success &&
-                                                invoiceResult.data && (
-                                                    <div className="space-y-4">
-                                                        {/* Invoice Summary */}
-                                                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                            <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                                                📊 Invoice
-                                                                Summary
-                                                            </h4>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                                                <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
-                                                                    <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                                                        Total
-                                                                        Invoices
-                                                                    </div>
-                                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                                                        {invoiceResult
-                                                                            .data
-                                                                            .total ||
-                                                                            invoiceResult
-                                                                                .data
-                                                                                .datas
-                                                                                ?.length ||
-                                                                            0}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
-                                                                    <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                                                        Query
-                                                                        Time
-                                                                    </div>
-                                                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                                                        {invoiceResult
-                                                                            .data
-                                                                            .time ||
-                                                                            0}
-                                                                        ms
-                                                                    </div>
-                                                                </div>
-                                                                <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
-                                                                    <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                                                        Data
-                                                                        Source
-                                                                    </div>
-                                                                    <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                                                                        {useSampleData
-                                                                            ? "Sample"
-                                                                            : "Live API"}
-                                                                    </div>
-                                                                </div>
+                                    {/* Invoice Data Display */}
+                                    {invoiceResult.success &&
+                                        invoiceResult.data && (
+                                            <div className="space-y-4">
+                                                {/* Invoice Summary */}
+                                                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                    <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                                        📊 Invoice Summary
+                                                    </h4>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                            <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                                Total Invoices
+                                                            </div>
+                                                            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                                {invoiceResult
+                                                                    .data
+                                                                    .total ||
+                                                                    invoiceResult
+                                                                        .data
+                                                                        .datas
+                                                                        ?.length ||
+                                                                    0}
                                                             </div>
                                                         </div>
+                                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                            <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                                Query Time
+                                                            </div>
+                                                            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                                                {invoiceResult
+                                                                    .data
+                                                                    .time || 0}
+                                                                ms
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                            <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                                Data Source
+                                                            </div>
+                                                            <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                                                                {useSampleData
+                                                                    ? "Sample"
+                                                                    : "Live API"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                                                        {/* Invoice Table */}
-                                                        {invoiceResult.data
-                                                            .datas &&
-                                                            invoiceResult.data
-                                                                .datas.length >
-                                                                0 && (
-                                                                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                                    <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                                                        📋
-                                                                        Invoice
-                                                                        Details
-                                                                    </h4>
-                                                                    <div className="overflow-x-auto">
-                                                                        <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                                                                            <thead className="bg-gray-100 dark:bg-gray-900">
-                                                                                <tr>
-                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                        Invoice
-                                                                                        No.
-                                                                                    </th>
-                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                        Seller
-                                                                                    </th>
-                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                        Date
-                                                                                    </th>
-                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                        Amount
-                                                                                    </th>
-                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                        Tax
-                                                                                    </th>
-                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                                                        Total
-                                                                                    </th>
-                                                                                </tr>
-                                                                            </thead>
-                                                                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                                                                {invoiceResult.data.datas.map(
-                                                                                    (
-                                                                                        invoice: any,
-                                                                                        index: number
-                                                                                    ) => (
-                                                                                        <tr
-                                                                                            key={
-                                                                                                invoice.id ||
-                                                                                                index
-                                                                                            }
-                                                                                            className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                                                                                        >
-                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                                                                                                <div className="font-mono">
-                                                                                                    {
-                                                                                                        invoice.khhdon
-                                                                                                    }
-
-                                                                                                    -
-                                                                                                    {
-                                                                                                        invoice.shdon
-                                                                                                    }
-                                                                                                </div>
-                                                                                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                                                    {
-                                                                                                        invoice.nbmst
-                                                                                                    }
-                                                                                                </div>
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                                                                                                <div className="font-medium">
-                                                                                                    {
-                                                                                                        invoice.nbten
-                                                                                                    }
-                                                                                                </div>
-                                                                                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                                                    {
-                                                                                                        invoice.nbdchi
-                                                                                                    }
-                                                                                                </div>
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                                                                                                {invoice.tdlap
-                                                                                                    ? new Date(
-                                                                                                          invoice.tdlap
-                                                                                                      ).toLocaleDateString()
-                                                                                                    : "N/A"}
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                                                                                                {invoice.tgtcthue?.toLocaleString()}{" "}
-                                                                                                VND
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                                                                                                {invoice.tgtthue?.toLocaleString()}{" "}
-                                                                                                VND
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                                                                {invoice.tgtttbso?.toLocaleString()}{" "}
-                                                                                                VND
-                                                                                            </td>
-                                                                                        </tr>
-                                                                                    )
-                                                                                )}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                        {/* Raw JSON Data (Collapsible) */}
+                                                {/* Invoice Table */}
+                                                {invoiceResult.data.datas &&
+                                                    invoiceResult.data.datas
+                                                        .length > 0 && (
                                                         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                            <details className="group">
-                                                                <summary className="cursor-pointer text-lg font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                                                                    <span className="mr-2 transition-transform group-open:rotate-90">
-                                                                        ▶
-                                                                    </span>
-                                                                    🔍 Raw JSON
-                                                                    Data
-                                                                </summary>
-                                                                <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto mt-3">
-                                                                    <pre className="text-green-400 text-sm font-mono">
-                                                                        {JSON.stringify(
-                                                                            invoiceResult.data,
-                                                                            null,
-                                                                            2
-                                                                        )}
-                                                                    </pre>
-                                                                </div>
-                                                            </details>
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                            <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                                                📋 Invoice
+                                                                Details
+                                                            </h4>
+                                                            <div className="overflow-x-auto">
+                                                                <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                                                                    <thead className="bg-gray-100 dark:bg-gray-900">
+                                                                        <tr>
+                                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                Invoice
+                                                                                No.
+                                                                            </th>
+                                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                Seller
+                                                                            </th>
+                                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                Date
+                                                                            </th>
+                                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                Amount
+                                                                            </th>
+                                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                Tax
+                                                                            </th>
+                                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                Total
+                                                                            </th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                                                        {invoiceResult.data.datas.map(
+                                                                            (
+                                                                                invoice: any,
+                                                                                index: number
+                                                                            ) => (
+                                                                                <tr
+                                                                                    key={
+                                                                                        invoice.id ||
+                                                                                        index
+                                                                                    }
+                                                                                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                                                                                >
+                                                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                        <div className="font-mono">
+                                                                                            {
+                                                                                                invoice.khhdon
+                                                                                            }
 
-                                            {/* Invoice Query Details */}
-                                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                                    🔍 Query Details
-                                                </h4>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
-                                                        <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                                            Status
+                                                                                            -
+                                                                                            {
+                                                                                                invoice.shdon
+                                                                                            }
+                                                                                        </div>
+                                                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                                            {
+                                                                                                invoice.nbmst
+                                                                                            }
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                        <div className="font-medium">
+                                                                                            {
+                                                                                                invoice.nbten
+                                                                                            }
+                                                                                        </div>
+                                                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                                            {
+                                                                                                invoice.nbdchi
+                                                                                            }
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                        {invoice.tdlap
+                                                                                            ? new Date(
+                                                                                                  invoice.tdlap
+                                                                                              ).toLocaleDateString()
+                                                                                            : "N/A"}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                        {invoice.tgtcthue?.toLocaleString()}{" "}
+                                                                                        VND
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                        {invoice.tgtthue?.toLocaleString()}{" "}
+                                                                                        VND
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                                        {invoice.tgtttbso?.toLocaleString()}{" "}
+                                                                                        VND
+                                                                                    </td>
+                                                                                </tr>
+                                                                            )
+                                                                        )}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-gray-800 dark:text-gray-200 font-semibold">
-                                                            {invoiceResult.status ||
-                                                                "N/A"}
+                                                    )}
+
+                                                {/* Raw JSON Data (Collapsible) */}
+                                                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                    <details className="group">
+                                                        <summary className="cursor-pointer text-lg font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                                            <span className="mr-2 transition-transform group-open:rotate-90">
+                                                                ▶
+                                                            </span>
+                                                            🔍 Raw JSON Data
+                                                        </summary>
+                                                        <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto mt-3">
+                                                            <pre className="text-green-400 text-sm font-mono">
+                                                                {JSON.stringify(
+                                                                    invoiceResult.data,
+                                                                    null,
+                                                                    2
+                                                                )}
+                                                            </pre>
                                                         </div>
-                                                    </div>
-                                                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
-                                                        <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                                            Timestamp
-                                                        </div>
-                                                        <div className="text-gray-800 dark:text-gray-200 font-mono text-xs">
-                                                            {invoiceResult.timestamp
-                                                                ? new Date(
-                                                                      invoiceResult.timestamp
-                                                                  ).toLocaleString()
-                                                                : "N/A"}
-                                                        </div>
-                                                    </div>
+                                                    </details>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    {/* Invoice Query Details */}
+                                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                        <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                            🔍 Query Details
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                    Status
+                                                </div>
+                                                <div className="text-gray-800 dark:text-gray-200 font-semibold">
+                                                    {invoiceResult.status ||
+                                                        "N/A"}
+                                                </div>
+                                            </div>
+                                            <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                    Timestamp
+                                                </div>
+                                                <div className="text-gray-800 dark:text-gray-200 font-mono text-xs">
+                                                    {invoiceResult.timestamp
+                                                        ? new Date(
+                                                              invoiceResult.timestamp
+                                                          ).toLocaleString()
+                                                        : "N/A"}
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* Raw Response Display */}
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                                📋 Raw Authentication Response
-                            </h2>
-                            <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto">
-                                <pre className="text-green-400 text-sm font-mono">
-                                    {JSON.stringify(authResult, null, 2)}
-                                </pre>
-                            </div>
-                        </div>
-
-                        {/* Quick Actions */}
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                                🚀 Quick Actions
-                            </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setAuthResult(null);
-                                        setAuthError(null);
-                                        handleFetchCaptcha();
-                                    }}
-                                    className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                                >
-                                    <span className="text-blue-600 dark:text-blue-400 text-xl mr-3">
-                                        🔄
-                                    </span>
-                                    <span className="text-blue-800 dark:text-blue-200 font-medium">
-                                        Try Again
-                                    </span>
-                                </button>
-                                <Link
-                                    href="/dashboard"
-                                    className="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-                                >
-                                    <span className="text-purple-600 dark:text-purple-400 text-xl mr-3">
-                                        🎯
-                                    </span>
-                                    <span className="text-purple-800 dark:text-purple-200 font-medium">
-                                        Dashboard
-                                    </span>
-                                </Link>
-                                <Link
-                                    href="/captcha-fetcher"
-                                    className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                                >
-                                    <span className="text-green-600 dark:text-green-400 text-xl mr-3">
-                                        🌐
-                                    </span>
-                                    <span className="text-green-800 dark:text-green-200 font-medium">
-                                        Captcha Fetcher
-                                    </span>
-                                </Link>
-                            </div>
+                            )}
                         </div>
                     </div>
                 )}
+
+                {/* Raw Response Display */}
+                {authResult && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                            📋 Raw Authentication Response
+                        </h2>
+                        <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto">
+                            <pre className="text-green-400 text-sm font-mono">
+                                {JSON.stringify(authResult, null, 2)}
+                            </pre>
+                        </div>
+                    </div>
+                )}
+
+                {/* Quick Actions */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                        🚀 Quick Actions
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAuthResult(null);
+                                setAuthError(null);
+                                handleFetchCaptcha();
+                            }}
+                            className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                        >
+                            <span className="text-blue-600 dark:text-blue-400 text-xl mr-3">
+                                🔄
+                            </span>
+                            <span className="text-blue-800 dark:text-blue-200 font-medium">
+                                Try Again
+                            </span>
+                        </button>
+                        <Link
+                            href="/dashboard"
+                            className="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                        >
+                            <span className="text-purple-600 dark:text-purple-400 text-xl mr-3">
+                                🎯
+                            </span>
+                            <span className="text-purple-800 dark:text-purple-200 font-medium">
+                                Dashboard
+                            </span>
+                        </Link>
+                        <Link
+                            href="/captcha-fetcher"
+                            className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                        >
+                            <span className="text-green-600 dark:text-green-400 text-xl mr-3">
+                                🌐
+                            </span>
+                            <span className="text-green-800 dark:text-green-200 font-medium">
+                                Captcha Fetcher
+                            </span>
+                        </Link>
+                    </div>
+                </div>
             </div>
         </div>
     );
