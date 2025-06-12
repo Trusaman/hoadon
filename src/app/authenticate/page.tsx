@@ -12,6 +12,7 @@ import {
     type CaptchaSolverResult,
     type InvoiceQueryResponse,
 } from "@/lib/captcha-api";
+import sampleResult from "../../../sample-result.json";
 
 interface AuthenticationResponse {
     success: boolean;
@@ -59,6 +60,7 @@ export default function AuthenticatePage() {
     const [invoiceResult, setInvoiceResult] =
         useState<InvoiceQueryResponse | null>(null);
     const [invoiceError, setInvoiceError] = useState<string | null>(null);
+    const [useSampleData, setUseSampleData] = useState(true);
 
     // Fetch captcha
     const handleFetchCaptcha = async () => {
@@ -73,7 +75,7 @@ export default function AuthenticatePage() {
             if (response.success && isValidCaptchaResponse(response)) {
                 setCaptchaData(response);
                 // Auto-solve the captcha
-                handleSolveCaptcha(response.data.rawSvg);
+                handleSolveCaptcha(response.data?.rawSvg);
             } else {
                 setCaptchaError(response.error || "Failed to fetch captcha");
             }
@@ -168,7 +170,7 @@ export default function AuthenticatePage() {
 
     // Query invoices
     const handleQueryInvoices = async () => {
-        if (!authResult?.token) {
+        if (!useSampleData && !authResult?.token) {
             setInvoiceError("No authentication token available");
             return;
         }
@@ -178,19 +180,36 @@ export default function AuthenticatePage() {
         setInvoiceResult(null);
 
         try {
-            const response = await queryInvoices({
-                token: authResult.token,
-                queryParams: {
-                    sort: "tdlap:desc,khmshdon:asc,shdon:desc",
-                    size: "15",
-                    search: "tdlap=ge=11/06/2025T00:00:00;tdlap=le=11/06/2025T23:59:59;ttxly==5",
-                },
-            });
+            if (useSampleData) {
+                // Simulate API delay
+                await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            setInvoiceResult(response);
+                // Use sample data
+                const response: InvoiceQueryResponse = {
+                    success: true,
+                    data: sampleResult.data,
+                    status: sampleResult.status,
+                    timestamp: sampleResult.timestamp,
+                    queryParams: sampleResult.queryParams,
+                    url: sampleResult.url,
+                };
 
-            if (!response.success) {
-                setInvoiceError(response.error || "Invoice query failed");
+                setInvoiceResult(response);
+            } else {
+                const response = await queryInvoices({
+                    token: authResult!.token!,
+                    queryParams: {
+                        sort: "tdlap:desc,khmshdon:asc,shdon:desc",
+                        size: "15",
+                        search: "tdlap=ge=11/06/2025T00:00:00;tdlap=le=11/06/2025T23:59:59;ttxly==5",
+                    },
+                });
+
+                setInvoiceResult(response);
+
+                if (!response.success) {
+                    setInvoiceError(response.error || "Invoice query failed");
+                }
             }
         } catch (error) {
             setInvoiceError(
@@ -555,7 +574,8 @@ export default function AuthenticatePage() {
                         )}
 
                         {/* Invoice Query Section */}
-                        {authResult.success && authResult.token && (
+                        {(useSampleData ||
+                            (authResult?.success && authResult?.token)) && (
                             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                                     📄 Query Invoices
@@ -573,6 +593,40 @@ export default function AuthenticatePage() {
                                             search for invoices from 06/01/2025
                                             to 06/01/2025 with status 5.
                                         </p>
+                                    </div>
+
+                                    {/* Data Source Toggle */}
+                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-yellow-800 dark:text-yellow-200 font-medium">
+                                                    📊 Data Source
+                                                </h4>
+                                                <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-1">
+                                                    {useSampleData
+                                                        ? "Using sample data from sample-result.json"
+                                                        : "Using live API data from Vietnamese Tax Authority"}
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={useSampleData}
+                                                    onChange={(e) =>
+                                                        setUseSampleData(
+                                                            e.target.checked
+                                                        )
+                                                    }
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                                <span className="ml-3 text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                                    {useSampleData
+                                                        ? "Sample Data"
+                                                        : "Live API"}
+                                                </span>
+                                            </label>
+                                        </div>
                                     </div>
 
                                     <button
@@ -667,18 +721,184 @@ export default function AuthenticatePage() {
                                             {/* Invoice Data Display */}
                                             {invoiceResult.success &&
                                                 invoiceResult.data && (
-                                                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                        <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                                            📊 Invoice Data
-                                                        </h4>
-                                                        <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto">
-                                                            <pre className="text-green-400 text-sm font-mono">
-                                                                {JSON.stringify(
-                                                                    invoiceResult.data,
-                                                                    null,
-                                                                    2
-                                                                )}
-                                                            </pre>
+                                                    <div className="space-y-4">
+                                                        {/* Invoice Summary */}
+                                                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                            <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                                                📊 Invoice
+                                                                Summary
+                                                            </h4>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                                <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                                    <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                                        Total
+                                                                        Invoices
+                                                                    </div>
+                                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                                        {invoiceResult
+                                                                            .data
+                                                                            .total ||
+                                                                            invoiceResult
+                                                                                .data
+                                                                                .datas
+                                                                                ?.length ||
+                                                                            0}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                                    <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                                        Query
+                                                                        Time
+                                                                    </div>
+                                                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                                                        {invoiceResult
+                                                                            .data
+                                                                            .time ||
+                                                                            0}
+                                                                        ms
+                                                                    </div>
+                                                                </div>
+                                                                <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                                                    <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                                        Data
+                                                                        Source
+                                                                    </div>
+                                                                    <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                                                                        {useSampleData
+                                                                            ? "Sample"
+                                                                            : "Live API"}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Invoice Table */}
+                                                        {invoiceResult.data
+                                                            .datas &&
+                                                            invoiceResult.data
+                                                                .datas.length >
+                                                                0 && (
+                                                                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                                    <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                                                        📋
+                                                                        Invoice
+                                                                        Details
+                                                                    </h4>
+                                                                    <div className="overflow-x-auto">
+                                                                        <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                                                                            <thead className="bg-gray-100 dark:bg-gray-900">
+                                                                                <tr>
+                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                        Invoice
+                                                                                        No.
+                                                                                    </th>
+                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                        Seller
+                                                                                    </th>
+                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                        Date
+                                                                                    </th>
+                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                        Amount
+                                                                                    </th>
+                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                        Tax
+                                                                                    </th>
+                                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                                        Total
+                                                                                    </th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                                                                {invoiceResult.data.datas.map(
+                                                                                    (
+                                                                                        invoice: any,
+                                                                                        index: number
+                                                                                    ) => (
+                                                                                        <tr
+                                                                                            key={
+                                                                                                invoice.id ||
+                                                                                                index
+                                                                                            }
+                                                                                            className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                                                                                        >
+                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                                <div className="font-mono">
+                                                                                                    {
+                                                                                                        invoice.khhdon
+                                                                                                    }
+
+                                                                                                    -
+                                                                                                    {
+                                                                                                        invoice.shdon
+                                                                                                    }
+                                                                                                </div>
+                                                                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                                                    {
+                                                                                                        invoice.nbmst
+                                                                                                    }
+                                                                                                </div>
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                                <div className="font-medium">
+                                                                                                    {
+                                                                                                        invoice.nbten
+                                                                                                    }
+                                                                                                </div>
+                                                                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                                                    {
+                                                                                                        invoice.nbdchi
+                                                                                                    }
+                                                                                                </div>
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                                {invoice.tdlap
+                                                                                                    ? new Date(
+                                                                                                          invoice.tdlap
+                                                                                                      ).toLocaleDateString()
+                                                                                                    : "N/A"}
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                                {invoice.tgtcthue?.toLocaleString()}{" "}
+                                                                                                VND
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                                                {invoice.tgtthue?.toLocaleString()}{" "}
+                                                                                                VND
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                                                {invoice.tgtttbso?.toLocaleString()}{" "}
+                                                                                                VND
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    )
+                                                                                )}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                        {/* Raw JSON Data (Collapsible) */}
+                                                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                            <details className="group">
+                                                                <summary className="cursor-pointer text-lg font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                                                    <span className="mr-2 transition-transform group-open:rotate-90">
+                                                                        ▶
+                                                                    </span>
+                                                                    🔍 Raw JSON
+                                                                    Data
+                                                                </summary>
+                                                                <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto mt-3">
+                                                                    <pre className="text-green-400 text-sm font-mono">
+                                                                        {JSON.stringify(
+                                                                            invoiceResult.data,
+                                                                            null,
+                                                                            2
+                                                                        )}
+                                                                    </pre>
+                                                                </div>
+                                                            </details>
                                                         </div>
                                                     </div>
                                                 )}
