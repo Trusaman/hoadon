@@ -738,6 +738,82 @@ Enhanced the Excel export functionality to use status-based endpoint routing, ma
 4. **Seamless User Experience**: No changes to UI or workflow, works transparently
 5. **Type Safety**: Full TypeScript interfaces for all new parameters
 
+## Phase 10.2: All Statuses Excel Export Support ✅ **COMPLETED**
+
+### Overview
+Enhanced the Excel export functionality to properly handle "All Statuses" selection, matching the behavior of the invoice query system. When users select "All Statuses" and click "Download to XLSX", the system now exports invoices from all three endpoints (status 5, 6, and 8) and provides multiple Excel file downloads.
+
+### What Was Implemented
+
+#### 1. Enhanced Excel Export API Route (`src/app/api/export-excel/route.ts`)
+- **All Statuses Detection**: Added logic to detect when status is empty/undefined (indicating "All Statuses" selection)
+- **Multi-Endpoint Export Function**: Created `handleAllStatusesExport()` function that:
+  - Makes parallel requests to all three endpoints (status 5, 6, and 8)
+  - Uses correct endpoint routing for each status
+  - Adds proper status filters to search queries
+  - Handles partial failures gracefully
+  - Returns the first successful export with combined filename information
+- **Enhanced Error Handling**: Comprehensive error handling for multi-endpoint scenarios
+- **Detailed Logging**: Enhanced logging for debugging multi-endpoint export operations
+
+#### 2. New Client-Side Export Function (`src/lib/captcha-api.ts`)
+- **New Function**: `exportAllStatusesToExcel()` for client-side multi-status export handling
+- **Parallel Processing**: Uses Promise.allSettled for concurrent export requests
+- **Individual File Handling**: Returns separate blob results for each status
+- **Enhanced Error Reporting**: Detailed error information for each status export
+- **Type Safety**: Full TypeScript interfaces for multi-status export results
+
+#### 3. Enhanced Download Logic (`src/app/authenticate/page.tsx`)
+- **All Statuses Detection**: Added conditional logic to detect "All Statuses" selection
+- **Multiple File Downloads**: Implements staggered downloads for multiple Excel files
+- **Download Timing**: 500ms delay between downloads to prevent browser blocking
+- **Enhanced Error Reporting**: Shows detailed success/failure information for each status
+- **Consistent Behavior**: Uses same search parameters as invoice query system
+
+### Technical Achievements
+
+1. **Consistent Multi-Endpoint Logic**: Excel export now matches invoice query behavior for "All Statuses"
+2. **Multiple File Downloads**: Successfully handles downloading separate Excel files for each status
+3. **Staggered Download System**: Prevents browser blocking with timed download intervals
+4. **Partial Success Handling**: Shows detailed feedback when some exports succeed and others fail
+5. **Enhanced User Experience**: Clear feedback about which files were downloaded successfully
+6. **Error Resilience**: Continues to provide downloads even if some endpoints fail
+
+### Key Features Delivered
+
+1. **🎯 All Statuses Support**: Properly handles "All Statuses" selection with multi-endpoint exports
+2. **📊 Multiple File Downloads**: Downloads separate Excel files for each status (5, 6, 8)
+3. **⏱️ Staggered Downloads**: 500ms delay between downloads to prevent browser issues
+4. **🔄 Parallel Processing**: Concurrent API calls for efficient multi-status export
+5. **📝 Enhanced Feedback**: Detailed success/failure reporting for each status export
+6. **🛡️ Error Resilience**: Partial success handling with clear user feedback
+7. **🔒 Type Safety**: Full TypeScript support for all new multi-status interfaces
+8. **📋 Consistent Behavior**: Matches invoice query system behavior exactly
+
+### User Experience Flow
+
+#### All Statuses Excel Export
+1. User selects "All Statuses" from status dropdown (empty value)
+2. User clicks "Download to XLSX" button
+3. System detects empty status and triggers multi-endpoint export
+4. Three parallel export requests are made to different endpoints
+5. Successful exports are downloaded as separate Excel files with staggered timing
+6. User receives detailed feedback about successful and failed exports
+
+#### Enhanced Download Features
+- **Multiple Files**: Separate Excel files for each status (e.g., `invoices_status_5.xlsx`, `invoices_status_6.xlsx`, `invoices_status_8.xlsx`)
+- **Staggered Downloads**: Downloads spaced 500ms apart to prevent browser blocking
+- **Detailed Feedback**: Clear messages about which exports succeeded and which failed
+- **Partial Success**: Downloads available files even if some endpoints fail
+
+### Files Modified for All Statuses Excel Export
+
+1. **Enhanced**: `src/app/api/export-excel/route.ts` - Added multi-endpoint export logic
+2. **Enhanced**: `src/lib/captcha-api.ts` - Added `exportAllStatusesToExcel()` function
+3. **Enhanced**: `src/app/authenticate/page.tsx` - Added multi-file download handling
+4. **Updated**: `docs/prd.md` - Added All Statuses export requirements
+5. **Updated**: `docs/implementation-log.md` - This implementation documentation
+
 ### Technical Implementation Details
 
 #### Authentication Flow

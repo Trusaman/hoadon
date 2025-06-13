@@ -619,3 +619,84 @@ export async function exportInvoicesToExcel(
         };
     }
 }
+
+/**
+ * Export invoices from all status endpoints (5, 6, 8) to Excel files
+ * @param exportRequest Excel export request with token and optional query parameters
+ * @returns Promise with results for all status exports
+ */
+export async function exportAllStatusesToExcel(
+    exportRequest: ExcelExportRequest
+): Promise<{
+    success: boolean;
+    results: Array<{
+        status: string;
+        success: boolean;
+        blob?: Blob;
+        filename?: string;
+        error?: string;
+    }>;
+    error?: string;
+}> {
+    try {
+        const statuses = ["5", "6", "8"];
+        const exportPromises = statuses.map(async (status) => {
+            const statusExportRequest = {
+                ...exportRequest,
+                status,
+            };
+
+            const result = await exportInvoicesToExcel(statusExportRequest);
+
+            return {
+                status,
+                success: result.success,
+                blob: result.blob,
+                filename: result.filename
+                    ? result.filename.replace(".xlsx", `_status_${status}.xlsx`)
+                    : `invoices_status_${status}.xlsx`,
+                error: result.error,
+            };
+        });
+
+        const results = await Promise.allSettled(exportPromises);
+        const exportResults = results.map((result, index) => {
+            if (result.status === "fulfilled") {
+                return result.value;
+            } else {
+                return {
+                    status: statuses[index],
+                    success: false,
+                    error:
+                        result.reason instanceof Error
+                            ? result.reason.message
+                            : "Unknown error",
+                };
+            }
+        });
+
+        const successfulExports = exportResults.filter(
+            (result) => result.success
+        );
+
+        return {
+            success: successfulExports.length > 0,
+            results: exportResults,
+            error:
+                successfulExports.length === 0
+                    ? "All export requests failed"
+                    : undefined,
+        };
+    } catch (error) {
+        console.error("Error exporting all statuses to Excel:", error);
+
+        return {
+            success: false,
+            results: [],
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
+        };
+    }
+}

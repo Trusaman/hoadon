@@ -229,6 +229,9 @@ src/app/helpers-demo/
   - **Responsive Design**: Button grid layout that adapts to screen size
   - **Tooltip Support**: Helpful tooltips explaining button state and requirements
   - **Consistent Routing Logic**: Matches the same endpoint selection pattern as invoice queries
+  - **All Statuses Support**: Handles "All Statuses" selection by exporting from multiple endpoints
+  - **Multiple File Downloads**: Downloads separate Excel files for each status when "All Statuses" is selected
+  - **Staggered Downloads**: Downloads are staggered by 500ms to prevent browser blocking
 
 ### Phase 3: Advanced Features
 - Performance monitoring integration

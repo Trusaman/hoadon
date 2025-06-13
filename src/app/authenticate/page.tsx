@@ -10,6 +10,7 @@ import {
     queryInvoices,
     queryAllStatusInvoices,
     exportInvoicesToExcel,
+    exportAllStatusesToExcel,
     type CaptchaResponse,
     type CaptchaSolverResult,
     type InvoiceQueryResponse,
@@ -292,30 +293,92 @@ export default function AuthenticatePage() {
         try {
             const searchQuery = buildSearchQuery();
 
-            const exportRequest: ExcelExportRequest = {
-                token: authResult!.token!,
-                status: searchParams.status, // Pass the current status to determine endpoint
-                queryParams: {
-                    search: searchQuery,
-                },
-            };
+            // Check if "All Statuses" is selected (empty status value)
+            if (!searchParams.status || searchParams.status === "") {
+                // Export from all status endpoints (5, 6, 8)
+                const exportRequest: ExcelExportRequest = {
+                    token: authResult!.token!,
+                    queryParams: {
+                        search: searchQuery,
+                    },
+                };
 
-            const result = await exportInvoicesToExcel(exportRequest);
+                const result = await exportAllStatusesToExcel(exportRequest);
 
-            if (result.success && result.blob) {
-                // Create download link and trigger download
-                const url = window.URL.createObjectURL(result.blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = result.filename || "invoices.xlsx";
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
+                if (result.success && result.results.length > 0) {
+                    const successfulExports = result.results.filter(
+                        (r) => r.success
+                    );
+
+                    if (successfulExports.length === 0) {
+                        setDownloadError("All export requests failed");
+                        return;
+                    }
+
+                    // Download all successful exports
+                    successfulExports.forEach((exportResult, index) => {
+                        if (exportResult.blob) {
+                            setTimeout(() => {
+                                const url = window.URL.createObjectURL(
+                                    exportResult.blob!
+                                );
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.download =
+                                    exportResult.filename ||
+                                    `invoices_status_${exportResult.status}.xlsx`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                            }, index * 500); // Stagger downloads by 500ms
+                        }
+                    });
+
+                    // Show success message with details
+                    const failedExports = result.results.filter(
+                        (r) => !r.success
+                    );
+                    if (failedExports.length > 0) {
+                        const failedStatuses = failedExports
+                            .map((r) => r.status)
+                            .join(", ");
+                        setDownloadError(
+                            `Downloaded ${successfulExports.length} files successfully. Failed to export statuses: ${failedStatuses}`
+                        );
+                    }
+                } else {
+                    setDownloadError(
+                        result.error || "Failed to download Excel files"
+                    );
+                }
             } else {
-                setDownloadError(
-                    result.error || "Failed to download Excel file"
-                );
+                // Export specific status endpoint
+                const exportRequest: ExcelExportRequest = {
+                    token: authResult!.token!,
+                    status: searchParams.status, // Pass the current status to determine endpoint
+                    queryParams: {
+                        search: searchQuery,
+                    },
+                };
+
+                const result = await exportInvoicesToExcel(exportRequest);
+
+                if (result.success && result.blob) {
+                    // Create download link and trigger download
+                    const url = window.URL.createObjectURL(result.blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = result.filename || "invoices.xlsx";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    setDownloadError(
+                        result.error || "Failed to download Excel file"
+                    );
+                }
             }
         } catch (error) {
             setDownloadError(
