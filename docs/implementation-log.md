@@ -689,11 +689,54 @@ Successfully implemented a "Download to XLSX" button that allows users to export
 
 ### Files Created/Modified for Excel Export
 
-1. **Created**: `src/app/api/export-excel/route.ts` - Excel export API route
-2. **Modified**: `src/lib/captcha-api.ts` - Added export interfaces and functions
-3. **Modified**: `src/app/authenticate/page.tsx` - Integrated download functionality
+1. **Created**: `src/app/api/export-excel/route.ts` - Excel export API route with status-based routing
+2. **Modified**: `src/lib/captcha-api.ts` - Added export interfaces and functions with status parameter
+3. **Modified**: `src/app/authenticate/page.tsx` - Integrated download functionality with status passing
 4. **Modified**: `docs/prd.md` - Added Excel export requirements
 5. **Modified**: `docs/implementation-log.md` - This implementation log update
+
+## Phase 10.1: Status-Based Excel Export Routing ✅ **COMPLETED**
+
+### Overview
+Enhanced the Excel export functionality to use status-based endpoint routing, matching the same pattern used by the invoice query system. This ensures that Excel exports use the correct Vietnamese Tax Authority endpoint based on the selected invoice status.
+
+### What Was Implemented
+
+#### 1. Enhanced Excel Export API Route (`src/app/api/export-excel/route.ts`)
+- **Status Parameter**: Added `status` parameter to request body for endpoint determination
+- **Conditional Endpoint Routing**: Implemented logic to select export endpoint based on status value
+  - **Status 8**: Routes to `https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/export-excel-sold`
+  - **Status 5 & 6**: Routes to `https://hoadondientu.gdt.gov.vn:30000/query/invoices/export-excel-sold`
+  - **Other statuses**: Routes to default `https://hoadondientu.gdt.gov.vn:30000/query/invoices/export-excel-sold`
+- **Enhanced Logging**: Added status and endpoint information to console logs for debugging
+- **Consistent Pattern**: Matches the exact same routing logic as the invoice query system
+
+#### 2. Updated Export Interface (`src/lib/captcha-api.ts`)
+- **Enhanced Interface**: Added optional `status` field to `ExcelExportRequest`
+- **Type Safety**: Maintains full TypeScript support for new parameter
+- **Backward Compatibility**: Status parameter is optional to maintain existing functionality
+
+#### 3. Enhanced Download Function (`src/app/authenticate/page.tsx`)
+- **Status Integration**: Modified `handleDownloadExcel` to pass `searchParams.status` to export API
+- **Consistent Behavior**: Export now uses the same status as the current search parameters
+- **Seamless Integration**: No UI changes required, functionality works transparently
+
+### Technical Achievements
+
+1. **Consistent Routing Logic**: Excel export now uses identical endpoint selection as invoice queries
+2. **Status-Based Compatibility**: Ensures proper API compatibility for different invoice types
+3. **Transparent Integration**: No changes to user interface or user experience
+4. **Enhanced Logging**: Better debugging capabilities with endpoint and status information
+5. **Type Safety**: Full TypeScript support for new status parameter
+6. **Backward Compatibility**: Existing functionality preserved while adding new capabilities
+
+### Key Features
+
+1. **Automatic Endpoint Selection**: Export endpoint automatically selected based on current status filter
+2. **Consistent API Usage**: Matches the same pattern used throughout the application
+3. **Enhanced Debugging**: Comprehensive logging for troubleshooting endpoint selection
+4. **Seamless User Experience**: No changes to UI or workflow, works transparently
+5. **Type Safety**: Full TypeScript interfaces for all new parameters
 
 ### Technical Implementation Details
 

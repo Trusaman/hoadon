@@ -70,6 +70,7 @@ export interface InvoiceQueryRequest {
 
 export interface ExcelExportRequest {
     token: string;
+    status?: string; // Invoice status to determine which endpoint to use
     queryParams?: {
         search?: string;
     };

@@ -294,6 +294,7 @@ export default function AuthenticatePage() {
 
             const exportRequest: ExcelExportRequest = {
                 token: authResult!.token!,
+                status: searchParams.status, // Pass the current status to determine endpoint
                 queryParams: {
                     search: searchQuery,
                 },
