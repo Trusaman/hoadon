@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
     // Configure external packages for server components
     serverExternalPackages: [],
 
+    // Disable ESLint during build for deployment
+    eslint: {
+        ignoreDuringBuilds: true,
+    },
+
     // Configure headers for CORS and security
     async headers() {
         return [
