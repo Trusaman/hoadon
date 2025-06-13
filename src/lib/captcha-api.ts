@@ -68,6 +68,22 @@ export interface InvoiceQueryRequest {
     };
 }
 
+export interface ExcelExportRequest {
+    token: string;
+    queryParams?: {
+        search?: string;
+    };
+}
+
+export interface ExcelExportResponse {
+    success: boolean;
+    error?: string;
+    status?: number;
+    statusText?: string;
+    details?: string;
+    timestamp?: string;
+}
+
 export interface InvoiceQueryResponse {
     success: boolean;
     data?: any;
@@ -534,6 +550,71 @@ export async function queryAllStatusInvoices(
                     ? error.message
                     : "Unknown error occurred",
             timestamp: new Date().toISOString(),
+        };
+    }
+}
+
+/**
+ * Export invoices to Excel from Vietnamese Tax Authority
+ * @param exportRequest Excel export request with token and optional query parameters
+ * @returns Promise<Blob> - Excel file as blob for download
+ */
+export async function exportInvoicesToExcel(
+    exportRequest: ExcelExportRequest
+): Promise<{
+    success: boolean;
+    blob?: Blob;
+    error?: string;
+    filename?: string;
+}> {
+    try {
+        const response = await fetch("/api/export-excel", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+            },
+            body: JSON.stringify(exportRequest),
+        });
+
+        if (!response.ok) {
+            // Try to get error details from response
+            const errorData = await response.json().catch(() => null);
+            throw new Error(
+                errorData?.error ||
+                    `HTTP ${response.status}: ${response.statusText}`
+            );
+        }
+
+        // Get the filename from Content-Disposition header if available
+        const contentDisposition = response.headers.get("content-disposition");
+        let filename = "invoices.xlsx";
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(
+                /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+            );
+            if (filenameMatch && filenameMatch[1]) {
+                filename = filenameMatch[1].replace(/['"]/g, "");
+            }
+        }
+
+        // Get the file as blob
+        const blob = await response.blob();
+
+        return {
+            success: true,
+            blob,
+            filename,
+        };
+    } catch (error) {
+        console.error("Error exporting invoices to Excel:", error);
+
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
         };
     }
 }

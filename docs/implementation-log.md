@@ -619,6 +619,82 @@ The invoice query API route was using POST method to query invoices, but the Vie
 5. **Modified**: `docs/implementation-log.md` - This implementation log update
 6. **🔧 FIXED**: `src/app/api/query-invoices/route.ts` - Changed POST to GET method for Vietnamese Tax Authority compatibility
 
+## Phase 10: Excel Export Functionality ✅ **COMPLETED**
+
+### Overview
+Successfully implemented a "Download to XLSX" button that allows users to export invoice data directly from the Vietnamese Tax Authority to Excel format. The implementation provides seamless integration with the existing authentication and search functionality, using the same parameters and filters as the invoice query system.
+
+### What Was Implemented
+
+#### 1. Excel Export API Route (`src/app/api/export-excel/route.ts`)
+- **Endpoint**: POST `/api/export-excel`
+- **Purpose**: Server-side proxy for Vietnamese Tax Authority Excel export
+- **Target URL**: `https://hoadondientu.gdt.gov.vn:30000/query/invoices/export-excel-sold`
+- **Request Body**: `{token, queryParams}`
+- **Features**:
+  - Token-based authentication using Bearer token
+  - Dynamic query parameter building with search filters
+  - Required parameters: `sort=tdlap:desc,khmshdon:asc,shdon:desc` and `type=purchase`
+  - Proper Excel file handling with Content-Type and Content-Disposition headers
+  - File download response streaming to client
+  - Comprehensive error handling with proper HTTP status codes
+  - Detailed logging with token masking for security
+  - CORS support for cross-origin requests
+
+#### 2. Enhanced Captcha API (`src/lib/captcha-api.ts`)
+- **New Interface**: `ExcelExportRequest` for export request parameters
+- **New Interface**: `ExcelExportResponse` for export response handling
+- **New Function**: `exportInvoicesToExcel()` for client-side export functionality
+- **Features**:
+  - Type-safe export request handling
+  - Blob response processing for file downloads
+  - Filename extraction from Content-Disposition headers
+  - Comprehensive error handling with user-friendly messages
+  - Network error detection and proper error categorization
+
+#### 3. Enhanced Authentication Page (`src/app/authenticate/page.tsx`)
+- **New State Management**: Added `downloadingExcel` and `downloadError` state variables
+- **New Function**: `handleDownloadExcel()` for export functionality
+- **UI Enhancements**:
+  - **Button Grid Layout**: Converted single "Query Invoices" button to responsive grid with two buttons
+  - **Download Button**: Green "📊 Download to XLSX" button with loading states
+  - **Smart Disabling**: Button disabled when using sample data or no authentication token
+  - **Tooltip Support**: Helpful tooltips explaining button state and requirements
+  - **Loading States**: Spinner animation and "Downloading..." text during export
+  - **Error Display**: Dedicated error section for download failures
+  - **File Download**: Automatic browser download trigger using blob URLs
+  - **Same Parameters**: Uses identical search parameters as invoice query function
+
+### Technical Achievements
+
+1. **Seamless Integration**: Export functionality uses same authentication and search parameters as query system
+2. **File Handling**: Proper Excel file download with correct MIME types and filenames
+3. **User Experience**: Intuitive button placement and clear loading/error states
+4. **Error Resilience**: Comprehensive error handling for network, authentication, and server errors
+5. **Type Safety**: Full TypeScript implementation with proper interfaces
+6. **Security**: Token-based authentication with proper header handling
+7. **Performance**: Efficient file streaming without memory issues
+8. **Responsive Design**: Button grid adapts to screen size (single column on mobile, two columns on desktop)
+
+### Key Features
+
+1. **Dynamic Query Building**: Uses same `buildSearchQuery()` function as invoice query
+2. **Authentication Integration**: Uses existing `authResult.token` from authentication flow
+3. **Sample Data Restriction**: Prevents export when using sample data mode with helpful error message
+4. **File Download**: Triggers browser download with proper filename from server response
+5. **Loading States**: Visual feedback with spinner and disabled state during download
+6. **Error Handling**: User-friendly error messages for various failure scenarios
+7. **Button Placement**: Strategically placed next to "Query Invoices" button for logical workflow
+8. **Responsive Layout**: Grid layout that adapts to screen size for optimal user experience
+
+### Files Created/Modified for Excel Export
+
+1. **Created**: `src/app/api/export-excel/route.ts` - Excel export API route
+2. **Modified**: `src/lib/captcha-api.ts` - Added export interfaces and functions
+3. **Modified**: `src/app/authenticate/page.tsx` - Integrated download functionality
+4. **Modified**: `docs/prd.md` - Added Excel export requirements
+5. **Modified**: `docs/implementation-log.md` - This implementation log update
+
 ### Technical Implementation Details
 
 #### Authentication Flow

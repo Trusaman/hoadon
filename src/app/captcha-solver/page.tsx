@@ -2,11 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import {
-    CaptchaSolverWrapper,
-    type CaptchaSolverResult,
-    type CaptchaSolverError,
-} from "@/lib/captcha-solver-wrapper";
 import { CaptchaSolver } from "./svg-captcha-solver";
 
 interface ValidationResult {
@@ -231,18 +226,7 @@ export default function CaptchaSolverPage() {
             setSolverResult(result);
         } catch (error) {
             console.error("Captcha solving error:", error);
-
-            // Handle typed errors from the wrapper
-            if (error && typeof error === "object" && "message" in error) {
-                const solverError = error as CaptchaSolverError & {
-                    processingTime?: number;
-                };
-                setError(`Failed to solve captcha: ${solverError.message}`);
-            } else {
-                setError(
-                    "Failed to solve captcha: " + (error as Error).message
-                );
-            }
+            setError("Failed to solve captcha: " + (error as Error).message);
         } finally {
             setIsProcessing(false);
         }

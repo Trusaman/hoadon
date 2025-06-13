@@ -694,7 +694,7 @@ function PerformanceDemo({
     const debounce = useCallback(
         (func: Function, wait: number, immediate = false) => {
             let timeout: NodeJS.Timeout;
-            return function executedFunction(...args: any[]) {
+            return function executedFunction(this: any, ...args: any[]) {
                 const later = () => {
                     timeout = null as any;
                     if (!immediate) func.apply(this, args);

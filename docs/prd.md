@@ -211,6 +211,21 @@ src/app/helpers-demo/
   - **Visual Status Indicators**: Color-coded status badges in the invoice table
   - **Enhanced Summary**: Detailed breakdown showing invoices per status type
 
+### Phase 10: Excel Export Functionality ✅ **COMPLETED**
+- **Objective**: Add "Download to XLSX" button for exporting invoice data to Excel format
+- **Features**:
+  - **Excel Export API Route**: GET endpoint to `/api/export-excel` that calls Vietnamese Tax Authority export endpoint
+  - **Export-Excel-Sold Endpoint**: Uses `https://hoadondientu.gdt.gov.vn:30000/query/invoices/export-excel-sold` endpoint
+  - **Dynamic Query Parameters**: Uses same search parameters as invoice query (date range, status filters)
+  - **Authentication Integration**: Uses existing authentication token from localStorage
+  - **File Download Handling**: Properly handles Excel file response and triggers browser download
+  - **Loading States**: Shows downloading progress with spinner and disabled state
+  - **Error Handling**: Comprehensive error handling with user-friendly messages
+  - **Sample Data Restriction**: Prevents export when using sample data mode
+  - **Button Placement**: Strategically placed next to "Query Invoices" button
+  - **Responsive Design**: Button grid layout that adapts to screen size
+  - **Tooltip Support**: Helpful tooltips explaining button state and requirements
+
 ### Phase 3: Advanced Features
 - Performance monitoring integration
 - Interactive code editor

@@ -9,9 +9,11 @@ import {
     isValidCaptchaResponse,
     queryInvoices,
     queryAllStatusInvoices,
+    exportInvoicesToExcel,
     type CaptchaResponse,
     type CaptchaSolverResult,
     type InvoiceQueryResponse,
+    type ExcelExportRequest,
 } from "@/lib/captcha-api";
 import sampleResult from "../../../sample-result.json";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -63,6 +65,10 @@ export default function AuthenticatePage() {
         useState<InvoiceQueryResponse | null>(null);
     const [invoiceError, setInvoiceError] = useState<string | null>(null);
     const [useSampleData, setUseSampleData] = useState(false);
+
+    // Excel export state
+    const [downloadingExcel, setDownloadingExcel] = useState(false);
+    const [downloadError, setDownloadError] = useState<string | null>(null);
 
     // Search parameters state
     const [searchParams, setSearchParams] = useState(() => {
@@ -263,6 +269,61 @@ export default function AuthenticatePage() {
             );
         } finally {
             setQueryingInvoices(false);
+        }
+    };
+
+    // Download Excel export
+    const handleDownloadExcel = async () => {
+        if (!useSampleData && !authResult?.token) {
+            setDownloadError("No authentication token available");
+            return;
+        }
+
+        if (useSampleData) {
+            setDownloadError(
+                "Excel export is not available for sample data. Please switch to Live API mode."
+            );
+            return;
+        }
+
+        setDownloadingExcel(true);
+        setDownloadError(null);
+
+        try {
+            const searchQuery = buildSearchQuery();
+
+            const exportRequest: ExcelExportRequest = {
+                token: authResult!.token!,
+                queryParams: {
+                    search: searchQuery,
+                },
+            };
+
+            const result = await exportInvoicesToExcel(exportRequest);
+
+            if (result.success && result.blob) {
+                // Create download link and trigger download
+                const url = window.URL.createObjectURL(result.blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = result.filename || "invoices.xlsx";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            } else {
+                setDownloadError(
+                    result.error || "Failed to download Excel file"
+                );
+            }
+        } catch (error) {
+            setDownloadError(
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred during download"
+            );
+        } finally {
+            setDownloadingExcel(false);
         }
     };
 
@@ -980,23 +1041,53 @@ export default function AuthenticatePage() {
                                 )}
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={handleQueryInvoices}
-                                disabled={queryingInvoices}
-                                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                            >
-                                {queryingInvoices ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                        Querying Invoices...
-                                    </>
-                                ) : (
-                                    <>📄 Query Invoices</>
-                                )}
-                            </button>
+                            {/* Action Buttons */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleQueryInvoices}
+                                    disabled={queryingInvoices}
+                                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                >
+                                    {queryingInvoices ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                            Querying Invoices...
+                                        </>
+                                    ) : (
+                                        <>📄 Query Invoices</>
+                                    )}
+                                </button>
 
-                            {/* Invoice Error Display */}
+                                <button
+                                    type="button"
+                                    onClick={handleDownloadExcel}
+                                    disabled={
+                                        downloadingExcel ||
+                                        useSampleData ||
+                                        !authResult?.token
+                                    }
+                                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                    title={
+                                        useSampleData
+                                            ? "Excel export is not available for sample data"
+                                            : !authResult?.token
+                                            ? "Authentication required"
+                                            : "Download invoices as Excel file"
+                                    }
+                                >
+                                    {downloadingExcel ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                            Downloading...
+                                        </>
+                                    ) : (
+                                        <>📊 Download to XLSX</>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Error Displays */}
                             {invoiceError && (
                                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                                     <div className="flex items-center">
@@ -1009,6 +1100,24 @@ export default function AuthenticatePage() {
                                             </h3>
                                             <p className="text-red-600 dark:text-red-400 mt-1">
                                                 {invoiceError}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {downloadError && (
+                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                                    <div className="flex items-center">
+                                        <span className="text-red-600 dark:text-red-400 text-xl mr-3">
+                                            ❌
+                                        </span>
+                                        <div>
+                                            <h3 className="text-red-800 dark:text-red-200 font-semibold">
+                                                Excel Download Failed
+                                            </h3>
+                                            <p className="text-red-600 dark:text-red-400 mt-1">
+                                                {downloadError}
                                             </p>
                                         </div>
                                     </div>
