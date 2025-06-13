@@ -700,3 +700,98 @@ export async function exportAllStatusesToExcel(
         };
     }
 }
+
+/**
+ * Export invoices from all status endpoints (5, 6, 8) and combine them into a single Excel workbook
+ * @param exportRequest Excel export request with token and optional query parameters
+ * @param dateRange Optional date range for descriptive filename
+ * @returns Promise with combined Excel file as blob
+ */
+export async function exportCombinedExcelWorkbook(
+    exportRequest: ExcelExportRequest,
+    dateRange?: { startDate: string; endDate: string }
+): Promise<{
+    success: boolean;
+    blob?: Blob;
+    filename?: string;
+    error?: string;
+}> {
+    try {
+        const response = await fetch("/api/combine-excel", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+            },
+            body: JSON.stringify({
+                token: exportRequest.token,
+                queryParams: exportRequest.queryParams,
+                dateRange,
+            }),
+        });
+
+        console.log("Combined Excel export response status:", response.status);
+        console.log(
+            "Combined Excel export response headers:",
+            Object.fromEntries(response.headers.entries())
+        );
+
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    errorMessage = errorData.error;
+                }
+                if (errorData.details) {
+                    errorMessage += ` - ${errorData.details}`;
+                }
+            } catch (parseError) {
+                console.warn("Could not parse error response as JSON");
+            }
+
+            return {
+                success: false,
+                error: errorMessage,
+            };
+        }
+
+        // Get filename from Content-Disposition header
+        const contentDisposition = response.headers.get("Content-Disposition");
+        let filename = "Combined_Invoice_Report.xlsx";
+
+        if (contentDisposition) {
+            const filenameMatch =
+                contentDisposition.match(/filename="([^"]+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+
+        // Convert response to blob
+        const blob = await response.blob();
+
+        console.log("Combined Excel export successful:", {
+            filename,
+            size: blob.size,
+            type: blob.type,
+        });
+
+        return {
+            success: true,
+            blob,
+            filename,
+        };
+    } catch (error) {
+        console.error("Error exporting combined Excel workbook:", error);
+
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
+        };
+    }
+}

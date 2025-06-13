@@ -216,8 +216,8 @@ src/app/helpers-demo/
 - **Features**:
   - **Excel Export API Route**: POST endpoint to `/api/export-excel` that calls Vietnamese Tax Authority export endpoint
   - **Status-Based Endpoint Routing**: Automatically selects correct export endpoint based on invoice status
-    - **Status 8**: Routes to `sco-query/invoices/export-excel-sold` endpoint
-    - **Status 5 & 6**: Routes to `query/invoices/export-excel-sold` endpoint
+    - **Status 6 & 8**: Routes to `sco-query/invoices/export-excel-sold` endpoint
+    - **Status 5**: Routes to `query/invoices/export-excel-sold` endpoint
     - **Other statuses**: Routes to default `query/invoices/export-excel-sold` endpoint
   - **Dynamic Query Parameters**: Uses same search parameters as invoice query (date range, status filters)
   - **Authentication Integration**: Uses existing authentication token from localStorage
@@ -232,6 +232,22 @@ src/app/helpers-demo/
   - **All Statuses Support**: Handles "All Statuses" selection by exporting from multiple endpoints
   - **Multiple File Downloads**: Downloads separate Excel files for each status when "All Statuses" is selected
   - **Staggered Downloads**: Downloads are staggered by 500ms to prevent browser blocking
+
+### Phase 11: Combined Excel Workbook ✅ **COMPLETED**
+- **Objective**: Create a combined Excel workbook with separate worksheets for each invoice status
+- **Features**:
+  - **Combined Excel API Route**: POST endpoint to `/api/combine-excel` that downloads and combines Excel files
+  - **Multi-Worksheet Structure**: Each status (5, 6, 8) becomes a separate worksheet named "Status 5", "Status 6", "Status 8"
+  - **XLSX Library Integration**: Uses `xlsx` library for Excel file manipulation and workbook creation
+  - **Descriptive Filenames**: Generates filenames with date range (e.g., "Combined_Invoice_Report_2024-01-01_to_2024-01-31.xlsx")
+  - **Data Preservation**: Maintains original data structure and formatting from each individual status file
+  - **Dual Download Options**: When "All Statuses" is selected, users can choose between:
+    - **Separate Files**: Downloads individual Excel files for each status (existing functionality)
+    - **Combined Workbook**: Downloads single Excel file with multiple worksheets
+  - **Smart UI**: Shows appropriate download buttons based on status selection
+  - **Error Handling**: Comprehensive error handling for file processing and combination
+  - **Date Range Integration**: Uses search parameters to generate descriptive filenames
+  - **Performance Optimization**: Efficient memory handling for large Excel files
 
 ### Phase 3: Advanced Features
 - Performance monitoring integration

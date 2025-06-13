@@ -10,10 +10,12 @@ async function handleAllStatusesExport(token: string, queryParams: any) {
         const exportPromises = statuses.map(async (status) => {
             // Determine endpoint for each status
             let baseEndpoint: string;
-            if (status === "8") {
+            if (status === "6" || status === "8") {
+                // For status 6 and 8, use the sco-query endpoint
                 baseEndpoint =
                     "https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/export-excel-sold";
             } else {
+                // For status 5 and other statuses, use the query endpoint
                 baseEndpoint =
                     "https://hoadondientu.gdt.gov.vn:30000/query/invoices/export-excel-sold";
             }
@@ -151,8 +153,8 @@ async function handleAllStatusesExport(token: string, queryParams: any) {
 /**
  * API route to export invoices to Excel from Vietnamese Tax Authority
  * Routes to different endpoints based on invoice status:
- * - Status 8: sco-query/invoices/export-excel-sold endpoint
- * - Status 5 and 6: query/invoices/export-excel-sold endpoint
+ * - Status 6 and 8: sco-query/invoices/export-excel-sold endpoint
+ * - Status 5: query/invoices/export-excel-sold endpoint
  * - Other statuses: query/invoices/export-excel-sold endpoint
  * - All Statuses: Makes requests to all three endpoints
  */
@@ -188,16 +190,12 @@ export async function POST(request: NextRequest) {
 
         // Determine the correct endpoint based on status
         let baseEndpoint: string;
-        if (status === "8") {
-            // For status 8 (Cục Thuế đã nhận hóa đơn có mã khởi tạo từ máy tính tiền)
+        if (status === "6" || status === "8") {
+            // For status 6 and 8, use the sco-query endpoint
             baseEndpoint =
                 "https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/export-excel-sold";
-        } else if (status === "5" || status === "6") {
-            // For status 5 and 6 (Đã cấp mã hóa đơn), use the query/invoices/export-excel-sold endpoint
-            baseEndpoint =
-                "https://hoadondientu.gdt.gov.vn:30000/query/invoices/export-excel-sold";
         } else {
-            // For other statuses or undefined status, use the query/invoices/export-excel-sold endpoint
+            // For status 5 and other statuses, use the query endpoint
             baseEndpoint =
                 "https://hoadondientu.gdt.gov.vn:30000/query/invoices/export-excel-sold";
         }

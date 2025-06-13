@@ -11,6 +11,7 @@ import {
     queryAllStatusInvoices,
     exportInvoicesToExcel,
     exportAllStatusesToExcel,
+    exportCombinedExcelWorkbook,
     type CaptchaResponse,
     type CaptchaSolverResult,
     type InvoiceQueryResponse,
@@ -273,7 +274,7 @@ export default function AuthenticatePage() {
         }
     };
 
-    // Download Excel export
+    // Download Excel export (separate files)
     const handleDownloadExcel = async () => {
         if (!useSampleData && !authResult?.token) {
             setDownloadError("No authentication token available");
@@ -379,6 +380,71 @@ export default function AuthenticatePage() {
                         result.error || "Failed to download Excel file"
                     );
                 }
+            }
+        } catch (error) {
+            setDownloadError(
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred during download"
+            );
+        } finally {
+            setDownloadingExcel(false);
+        }
+    };
+
+    // Download combined Excel workbook
+    const handleDownloadCombinedExcel = async () => {
+        if (!useSampleData && !authResult?.token) {
+            setDownloadError("No authentication token available");
+            return;
+        }
+
+        if (useSampleData) {
+            setDownloadError(
+                "Excel export is not available for sample data. Please switch to Live API mode."
+            );
+            return;
+        }
+
+        setDownloadingExcel(true);
+        setDownloadError(null);
+
+        try {
+            const searchQuery = buildSearchQuery();
+
+            // Prepare date range for descriptive filename
+            const dateRange = {
+                startDate: searchParams.startDate?.toISOString() || "",
+                endDate: searchParams.endDate?.toISOString() || "",
+            };
+
+            const exportRequest: ExcelExportRequest = {
+                token: authResult!.token!,
+                queryParams: {
+                    search: searchQuery,
+                },
+            };
+
+            const result = await exportCombinedExcelWorkbook(
+                exportRequest,
+                dateRange
+            );
+
+            if (result.success && result.blob) {
+                // Create download link and trigger download
+                const url = window.URL.createObjectURL(result.blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download =
+                    result.filename || "Combined_Invoice_Report.xlsx";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            } else {
+                setDownloadError(
+                    result.error || "Failed to download combined Excel file"
+                );
             }
         } catch (error) {
             setDownloadError(
@@ -1123,32 +1189,99 @@ export default function AuthenticatePage() {
                                     )}
                                 </button>
 
-                                <button
-                                    type="button"
-                                    onClick={handleDownloadExcel}
-                                    disabled={
-                                        downloadingExcel ||
-                                        useSampleData ||
-                                        !authResult?.token
-                                    }
-                                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                                    title={
-                                        useSampleData
-                                            ? "Excel export is not available for sample data"
-                                            : !authResult?.token
-                                            ? "Authentication required"
-                                            : "Download invoices as Excel file"
-                                    }
-                                >
-                                    {downloadingExcel ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                            Downloading...
-                                        </>
-                                    ) : (
-                                        <>📊 Download to XLSX</>
-                                    )}
-                                </button>
+                                {/* Download Options - Show different buttons based on status selection */}
+                                {!searchParams.status ||
+                                searchParams.status === "" ? (
+                                    // All Statuses selected - show both options
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleDownloadExcel}
+                                            disabled={
+                                                downloadingExcel ||
+                                                useSampleData ||
+                                                !authResult?.token
+                                            }
+                                            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                            title={
+                                                useSampleData
+                                                    ? "Excel export is not available for sample data"
+                                                    : !authResult?.token
+                                                    ? "Authentication required"
+                                                    : "Download separate Excel files for each status"
+                                            }
+                                        >
+                                            {downloadingExcel ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                                    Downloading...
+                                                </>
+                                            ) : (
+                                                <>📊 Download Separate Files</>
+                                            )}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                handleDownloadCombinedExcel
+                                            }
+                                            disabled={
+                                                downloadingExcel ||
+                                                useSampleData ||
+                                                !authResult?.token
+                                            }
+                                            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                            title={
+                                                useSampleData
+                                                    ? "Excel export is not available for sample data"
+                                                    : !authResult?.token
+                                                    ? "Authentication required"
+                                                    : "Download combined Excel workbook with separate worksheets for each status"
+                                            }
+                                        >
+                                            {downloadingExcel ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                                    Downloading...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    📋 Download Combined
+                                                    Workbook
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    // Specific status selected - show single download option
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadExcel}
+                                        disabled={
+                                            downloadingExcel ||
+                                            useSampleData ||
+                                            !authResult?.token
+                                        }
+                                        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                        title={
+                                            useSampleData
+                                                ? "Excel export is not available for sample data"
+                                                : !authResult?.token
+                                                ? "Authentication required"
+                                                : "Download invoices as Excel file"
+                                        }
+                                    >
+                                        {downloadingExcel ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                                Downloading...
+                                            </>
+                                        ) : (
+                                            <>📊 Download to XLSX</>
+                                        )}
+                                    </button>
+                                )}
                             </div>
 
                             {/* Error Displays */}
