@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import https from "https";
+import axios from "axios";
+
+// Create a custom agent to bypass SSL certificate verification
+const httpsAgent = new https.Agent({
+    rejectUnauthorized: false,
+});
 
 /**
  * API route to query invoices from Vietnamese Tax Authority
@@ -84,9 +91,9 @@ export async function POST(request: NextRequest) {
             queryParams: finalParams,
         });
 
-        // Send invoice query request (using GET method as required by Vietnamese Tax Authority)
-        const response = await fetch(invoiceUrl, {
-            method: "GET",
+        // Send invoice query request using axios
+        const response = await axios.get(invoiceUrl, {
+            httpsAgent,
             headers: {
                 Authorization: `Bearer ${token}`,
                 "User-Agent":
@@ -98,51 +105,19 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        console.log("Invoice query response status:", response.status);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-                `Invoice query failed: ${response.status} ${response.statusText}`,
-                errorText
-            );
-
-            return NextResponse.json(
-                {
-                    error: "Invoice query failed",
-                    status: response.status,
-                    statusText: response.statusText,
-                    details: errorText,
-                    success: false,
-                    timestamp: new Date().toISOString(),
-                },
-                { status: response.status }
-            );
-        }
-
-        // Get the content type from the response
-        const contentType = response.headers.get("content-type") || "";
-
-        let responseData;
-        if (contentType.includes("application/json")) {
-            responseData = await response.json();
-        } else {
-            responseData = await response.text();
-        }
-
         console.log("Invoice query successful:", {
             status: response.status,
-            contentType,
-            hasData: !!responseData,
-            dataType: typeof responseData,
+            contentType: response.headers["content-type"],
+            hasData: !!response.data,
+            dataType: typeof response.data,
         });
 
         // Return successful invoice query response
         return NextResponse.json({
             success: true,
-            data: responseData,
+            data: response.data,
             status: response.status,
-            contentType,
+            contentType: response.headers["content-type"],
             timestamp: new Date().toISOString(),
             queryParams: finalParams,
             url: invoiceUrl,
@@ -150,15 +125,26 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error("Invoice query error:", error);
 
-        // Determine error type for better user feedback
+        // Handle axios specific errors
+        if (axios.isAxiosError(error)) {
+            return NextResponse.json(
+                {
+                    error: "Invoice query failed",
+                    status: error.response?.status || 500,
+                    statusText: error.response?.statusText,
+                    details: error.response?.data || error.message,
+                    success: false,
+                    timestamp: new Date().toISOString(),
+                },
+                { status: error.response?.status || 502 }
+            );
+        }
+
+        // Handle other types of errors
         let errorMessage = "Unknown error occurred";
         let statusCode = 500;
 
-        if (error instanceof TypeError && error.message.includes("fetch")) {
-            errorMessage =
-                "Network error: Unable to connect to invoice service";
-            statusCode = 503;
-        } else if (error instanceof SyntaxError) {
+        if (error instanceof SyntaxError) {
             errorMessage = "Invalid JSON in request body";
             statusCode = 400;
         } else if (error instanceof Error) {

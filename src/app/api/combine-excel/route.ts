@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import https from "https";
+import axios from "axios";
+
+// Create a custom agent to bypass SSL certificate verification
+const httpsAgent = new https.Agent({
+    rejectUnauthorized: false,
+});
 
 interface CombineExcelRequest {
     token: string;
@@ -58,8 +65,8 @@ async function downloadExcelForStatus(
             hasToken: !!token,
         });
 
-        const response = await fetch(exportUrl, {
-            method: "GET",
+        const response = await axios.get(exportUrl, {
+            httpsAgent,
             headers: {
                 Authorization: `Bearer ${token}`,
                 "User-Agent":
@@ -69,24 +76,22 @@ async function downloadExcelForStatus(
                 "Cache-Control": "no-cache",
                 Pragma: "no-cache",
             },
+            responseType: "arraybuffer",
         });
 
-        if (response.ok) {
-            const buffer = await response.arrayBuffer();
-            return { success: true, buffer };
-        } else {
-            console.error(
-                `Export failed for status ${status}:`,
-                response.status,
-                response.statusText
-            );
-            return {
-                success: false,
-                error: `Status ${response.status}: ${response.statusText}`,
-            };
-        }
+        return { success: true, buffer: response.data };
     } catch (error) {
         console.error(`Error downloading Excel for status ${status}:`, error);
+
+        if (axios.isAxiosError(error)) {
+            return {
+                success: false,
+                error: `Status ${error.response?.status}: ${
+                    error.response?.statusText || error.message
+                }`,
+            };
+        }
+
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",

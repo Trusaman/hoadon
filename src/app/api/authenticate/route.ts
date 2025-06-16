@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import https from "https";
+import axios from "axios";
+
+// Create a custom agent to bypass SSL certificate verification
+const httpsAgent = new https.Agent({
+    rejectUnauthorized: false,
+});
 
 /**
  * API route to authenticate with Vietnamese Tax Authority
@@ -48,9 +55,9 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        // Send authentication request
-        const response = await fetch(authUrl, {
-            method: "POST",
+        // Send authentication request using axios
+        const response = await axios.post(authUrl, authPayload, {
+            httpsAgent,
             headers: {
                 "Content-Type": "application/json",
                 "User-Agent":
@@ -60,54 +67,21 @@ export async function POST(request: NextRequest) {
                 "Cache-Control": "no-cache",
                 Pragma: "no-cache",
             },
-            body: JSON.stringify(authPayload),
         });
-
-        console.log("Authentication response status:", response.status);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-                `Authentication failed: ${response.status} ${response.statusText}`,
-                errorText
-            );
-
-            return NextResponse.json(
-                {
-                    error: "Authentication failed",
-                    status: response.status,
-                    statusText: response.statusText,
-                    details: errorText,
-                    success: false,
-                    timestamp: new Date().toISOString(),
-                },
-                { status: response.status }
-            );
-        }
-
-        // Get the content type from the response
-        const contentType = response.headers.get("content-type") || "";
-
-        let responseData;
-        if (contentType.includes("application/json")) {
-            responseData = await response.json();
-        } else {
-            responseData = await response.text();
-        }
 
         console.log("Authentication successful:", {
             status: response.status,
-            contentType,
-            hasToken: !!(responseData?.token || responseData?.access_token),
+            contentType: response.headers["content-type"],
+            hasToken: !!(response.data?.token || response.data?.access_token),
         });
 
         // Return successful authentication response
         return NextResponse.json({
             success: true,
-            data: responseData,
-            token: responseData?.token || responseData?.access_token || null,
+            data: response.data,
+            token: response.data?.token || response.data?.access_token || null,
             status: response.status,
-            contentType,
+            contentType: response.headers["content-type"],
             timestamp: new Date().toISOString(),
             authPayload: {
                 ckey,
@@ -119,15 +93,26 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error("Authentication error:", error);
 
-        // Determine error type for better user feedback
+        // Handle axios specific errors
+        if (axios.isAxiosError(error)) {
+            return NextResponse.json(
+                {
+                    error: "Authentication failed",
+                    status: error.response?.status || 500,
+                    statusText: error.response?.statusText,
+                    details: error.response?.data || error.message,
+                    success: false,
+                    timestamp: new Date().toISOString(),
+                },
+                { status: error.response?.status || 502 }
+            );
+        }
+
+        // Handle other types of errors
         let errorMessage = "Unknown error occurred";
         let statusCode = 500;
 
-        if (error instanceof TypeError && error.message.includes("fetch")) {
-            errorMessage =
-                "Network error: Unable to connect to authentication service";
-            statusCode = 503;
-        } else if (error instanceof SyntaxError) {
+        if (error instanceof SyntaxError) {
             errorMessage = "Invalid JSON in request body";
             statusCode = 400;
         } else if (error instanceof Error) {

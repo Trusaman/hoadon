@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import https from "https";
+import axios from "axios";
+
+// Create a custom agent to bypass SSL certificate verification
+const httpsAgent = new https.Agent({
+    rejectUnauthorized: false,
+});
 
 /**
  * Handle "All Statuses" export by making requests to all three endpoints
@@ -40,9 +47,9 @@ async function handleAllStatusesExport(token: string, queryParams: any) {
 
             console.log(`Exporting status ${status} from:`, exportUrl);
 
-            // Make the export request
-            const response = await fetch(exportUrl, {
-                method: "GET",
+            // Make the export request using axios
+            const response = await axios.get(exportUrl, {
+                httpsAgent,
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "User-Agent":
@@ -52,28 +59,15 @@ async function handleAllStatusesExport(token: string, queryParams: any) {
                     "Cache-Control": "no-cache",
                     Pragma: "no-cache",
                 },
+                responseType: "arraybuffer",
             });
 
-            if (response.ok) {
-                const buffer = await response.arrayBuffer();
-                return {
-                    status,
-                    success: true,
-                    buffer,
-                    filename: `invoices_status_${status}.xlsx`,
-                };
-            } else {
-                console.error(
-                    `Export failed for status ${status}:`,
-                    response.status,
-                    response.statusText
-                );
-                return {
-                    status,
-                    success: false,
-                    error: `Status ${response.status}: ${response.statusText}`,
-                };
-            }
+            return {
+                status,
+                success: true,
+                buffer: response.data,
+                filename: `invoices_status_${status}.xlsx`,
+            };
         });
 
         const results = await Promise.allSettled(exportPromises);
@@ -110,7 +104,6 @@ async function handleAllStatusesExport(token: string, queryParams: any) {
         }
 
         // For multiple successful exports, we'll return the first one with a combined filename
-        // In a real implementation, you might want to create a ZIP file or merge the Excel files
         const firstExport = successfulExports[0];
         const statusList = successfulExports.map((exp) => exp.status).join("_");
 
@@ -137,6 +130,21 @@ async function handleAllStatusesExport(token: string, queryParams: any) {
         });
     } catch (error) {
         console.error("All statuses export error:", error);
+
+        if (axios.isAxiosError(error)) {
+            return NextResponse.json(
+                {
+                    error: "Export request failed",
+                    status: error.response?.status || 500,
+                    statusText: error.response?.statusText,
+                    details: error.response?.data || error.message,
+                    success: false,
+                    timestamp: new Date().toISOString(),
+                },
+                { status: error.response?.status || 502 }
+            );
+        }
+
         return NextResponse.json(
             {
                 error: "Internal server error during all statuses export",
@@ -227,9 +235,9 @@ export async function POST(request: NextRequest) {
             }
         );
 
-        // Send export request to Vietnamese Tax Authority
-        const response = await fetch(exportUrl, {
-            method: "GET",
+        // Send export request to Vietnamese Tax Authority using axios
+        const response = await axios.get(exportUrl, {
+            httpsAgent,
             headers: {
                 Authorization: `Bearer ${token}`,
                 "User-Agent":
@@ -239,65 +247,41 @@ export async function POST(request: NextRequest) {
                 "Cache-Control": "no-cache",
                 Pragma: "no-cache",
             },
+            responseType: "arraybuffer",
         });
-
-        console.log("Excel export response status:", response.status);
-        console.log(
-            "Excel export response headers:",
-            Object.fromEntries(response.headers.entries())
-        );
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-                `Excel export failed: ${response.status} ${response.statusText}`,
-                errorText
-            );
-
-            return NextResponse.json(
-                {
-                    error: "Excel export failed",
-                    status: response.status,
-                    statusText: response.statusText,
-                    details: errorText,
-                    success: false,
-                    timestamp: new Date().toISOString(),
-                },
-                { status: response.status }
-            );
-        }
-
-        // Get the content type from the response
-        const contentType = response.headers.get("content-type") || "";
-        const contentDisposition =
-            response.headers.get("content-disposition") || "";
 
         console.log("Excel export successful:", {
-            contentType,
-            contentDisposition,
             status: response.status,
+            contentType: response.headers["content-type"],
+            contentLength: response.headers["content-length"],
         });
 
-        // Get the file data as array buffer
-        const fileBuffer = await response.arrayBuffer();
-
-        // Create response with the Excel file
-        const fileResponse = new NextResponse(fileBuffer, {
+        // Return the Excel file
+        return new NextResponse(response.data, {
             status: 200,
             headers: {
                 "Content-Type":
-                    contentType ||
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "Content-Disposition":
-                    contentDisposition ||
-                    'attachment; filename="invoices.xlsx"',
-                "Content-Length": fileBuffer.byteLength.toString(),
+                "Content-Disposition": `attachment; filename="invoices_status_${status}.xlsx"`,
+                "Content-Length": response.headers["content-length"],
             },
         });
-
-        return fileResponse;
     } catch (error) {
         console.error("Excel export error:", error);
+
+        if (axios.isAxiosError(error)) {
+            return NextResponse.json(
+                {
+                    error: "Export request failed",
+                    status: error.response?.status || 500,
+                    statusText: error.response?.statusText,
+                    details: error.response?.data || error.message,
+                    success: false,
+                    timestamp: new Date().toISOString(),
+                },
+                { status: error.response?.status || 502 }
+            );
+        }
 
         return NextResponse.json(
             {
