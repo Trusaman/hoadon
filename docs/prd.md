@@ -1,7 +1,27 @@
-# Helper Functions Demonstration Page - Product Requirements Document
+# Vietnamese Tax Portal System - Product Requirements Document
 
 ## Project Overview
-Create a comprehensive demonstration page showcasing all helper functions available in the `src/lib/` directory of the hoadon project. This page will serve as both documentation and testing interface for the utility functions.
+A comprehensive Vietnamese Tax Portal authentication and invoice management system with captcha verification, authentication, invoice querying, and Excel export functionality. The system includes advanced features like automatic multi-month date range splitting for Excel exports.
+
+## Latest Feature: Multi-Month Excel Export Splitting (2025-07-27)
+
+### Feature Requirements
+- **Automatic Detection**: System must automatically detect when a user selects a date range spanning more than one calendar month
+- **Monthly Splitting**: Break date ranges into separate monthly chunks with proper boundary handling
+- **File Generation**: Generate separate combined Excel workbooks for each monthly period
+- **Descriptive Naming**: Use filenames that include specific month range (e.g., "Combined_Invoice_Report_2025-01-01_to_2025-01-31.xlsx")
+- **Progress Tracking**: Provide real-time feedback showing current month being processed and overall progress
+- **Error Handling**: Handle partial failures gracefully (some months succeed, others fail)
+- **API Integration**: Maintain compatibility with existing Vietnamese Tax Authority API endpoints
+- **User Experience**: Clear visual indicators and progress bars for multi-month operations
+
+### Technical Specifications
+- **Date Range Detection**: Function to identify multi-month spans across year boundaries
+- **Month Boundary Logic**: Proper handling of month start/end dates, leap years, and varying month lengths
+- **Progress State Management**: Real-time tracking of download progress with success/failure reporting
+- **Staggered Downloads**: Implement delays between requests to avoid overwhelming the tax authority servers
+- **Backward Compatibility**: Single-month ranges continue to work with existing logic
+- **File Organization**: Each monthly file maintains the same internal structure (separate worksheets for different invoice statuses)
 
 ## Discovered Helper Functions Inventory
 

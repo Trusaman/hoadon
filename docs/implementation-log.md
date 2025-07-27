@@ -19,6 +19,35 @@ Successfully implemented a comprehensive Vietnamese Tax Portal authentication an
 - **Compatibility**: Maintains existing authentication functionality and state management
 - **Performance**: No additional redirects or navigation overhead
 
+## Multi-Month Excel Export Feature (2025-07-27)
+
+### Automatic Monthly Date Range Splitting
+- **Feature**: Excel exports now automatically split date ranges longer than one month into separate monthly downloads
+- **Detection Logic**: Added `isDateRangeMultiMonth()` function to detect multi-month date ranges
+- **Month Splitting**: Implemented `splitDateRangeByMonth()` to break ranges into monthly chunks
+- **File Generation**: Each month generates a separate combined Excel workbook with status-specific worksheets
+- **File Naming**: Descriptive filenames include specific month range (e.g., "Combined_Invoice_Report_2025-01-01_to_2025-01-31.xlsx")
+
+### User Experience Enhancements
+- **Progress Tracking**: Real-time progress display showing current month being processed
+- **Visual Indicators**: "Multi-Month" badge appears on download button when range spans multiple months
+- **Progress Bar**: Visual progress bar showing completion percentage
+- **Success/Failure Reporting**: Detailed feedback showing which months succeeded/failed
+- **Staggered Downloads**: 1-second delay between downloads to avoid overwhelming the server
+
+### Technical Implementation
+- **Modified Functions**: Enhanced `handleDownloadCombinedExcel()` in `src/app/authenticate/page.tsx`
+- **State Management**: Added `multiMonthProgress` state for tracking download progress
+- **Error Handling**: Graceful handling of partial failures (some months succeed, others fail)
+- **API Integration**: Maintains existing API structure while calling endpoints multiple times with different date ranges
+- **Backward Compatibility**: Single-month ranges continue to work with existing logic
+
+### Code Changes
+- **Date Utilities**: Added utility functions for date range detection and splitting
+- **UI Components**: Enhanced download button with progress indicators and multi-month badge
+- **Progress Display**: New progress section showing detailed multi-month download status
+- **Error Reporting**: Improved error messages for multi-month download scenarios
+
 ## What Was Implemented
 
 ### 1. Main Demo Page (`src/app/helpers-demo/page.tsx`)

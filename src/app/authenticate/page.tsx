@@ -72,6 +72,23 @@ export default function AuthenticatePage() {
     const [downloadingExcel, setDownloadingExcel] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
+    // Multi-month download progress state
+    const [multiMonthProgress, setMultiMonthProgress] = useState<{
+        isMultiMonth: boolean;
+        totalMonths: number;
+        completedMonths: number;
+        currentMonth: string;
+        successfulDownloads: string[];
+        failedDownloads: string[];
+    }>({
+        isMultiMonth: false,
+        totalMonths: 0,
+        completedMonths: 0,
+        currentMonth: "",
+        successfulDownloads: [],
+        failedDownloads: [],
+    });
+
     // Search parameters state
     const [searchParams, setSearchParams] = useState(() => {
         const today = new Date();
@@ -392,7 +409,7 @@ export default function AuthenticatePage() {
         }
     };
 
-    // Download combined Excel workbook
+    // Download combined Excel workbook with automatic monthly splitting
     const handleDownloadCombinedExcel = async () => {
         if (!useSampleData && !authResult?.token) {
             setDownloadError("No authentication token available");
@@ -406,45 +423,229 @@ export default function AuthenticatePage() {
             return;
         }
 
+        if (!searchParams.startDate || !searchParams.endDate) {
+            setDownloadError("Please select both start and end dates");
+            return;
+        }
+
         setDownloadingExcel(true);
         setDownloadError(null);
 
         try {
-            const searchQuery = buildSearchQuery();
-
-            // Prepare date range for descriptive filename
-            const dateRange = {
-                startDate: searchParams.startDate?.toISOString() || "",
-                endDate: searchParams.endDate?.toISOString() || "",
-            };
-
-            const exportRequest: ExcelExportRequest = {
-                token: authResult!.token!,
-                queryParams: {
-                    search: searchQuery,
-                },
-            };
-
-            const result = await exportCombinedExcelWorkbook(
-                exportRequest,
-                dateRange
+            // Check if date range spans multiple months
+            const isMultiMonth = isDateRangeMultiMonth(
+                searchParams.startDate,
+                searchParams.endDate
             );
 
-            if (result.success && result.blob) {
-                // Create download link and trigger download
-                const url = window.URL.createObjectURL(result.blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download =
-                    result.filename || "Combined_Invoice_Report.xlsx";
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-            } else {
-                setDownloadError(
-                    result.error || "Failed to download combined Excel file"
+            if (isMultiMonth) {
+                // Split date range into monthly chunks
+                const monthlyRanges = splitDateRangeByMonth(
+                    searchParams.startDate,
+                    searchParams.endDate
                 );
+
+                // Initialize progress tracking
+                setMultiMonthProgress({
+                    isMultiMonth: true,
+                    totalMonths: monthlyRanges.length,
+                    completedMonths: 0,
+                    currentMonth: "",
+                    successfulDownloads: [],
+                    failedDownloads: [],
+                });
+
+                const successfulDownloads: string[] = [];
+                const failedDownloads: string[] = [];
+
+                // Process each monthly range
+                for (let i = 0; i < monthlyRanges.length; i++) {
+                    const range = monthlyRanges[i];
+
+                    // Update progress
+                    setMultiMonthProgress((prev) => ({
+                        ...prev,
+                        currentMonth: range.monthLabel,
+                        completedMonths: i,
+                    }));
+
+                    try {
+                        // Build search query for this specific month
+                        const monthlySearchParts: string[] = [];
+
+                        // Date range for this month
+                        const formattedStartDate = formatDateForAPI(
+                            range.startDate
+                        );
+                        const formattedEndDate = formatDateForAPI(
+                            range.endDate
+                        );
+                        monthlySearchParts.push(
+                            `tdlap=ge=${formattedStartDate}T00:00:00`
+                        );
+                        monthlySearchParts.push(
+                            `tdlap=le=${formattedEndDate}T23:59:59`
+                        );
+
+                        // Add other search parameters (status, invoice number, etc.)
+                        if (searchParams.status && searchParams.status !== "") {
+                            monthlySearchParts.push(
+                                `ttxly==${searchParams.status}`
+                            );
+                        }
+                        if (searchParams.invoiceNumber) {
+                            monthlySearchParts.push(
+                                `shdon==${searchParams.invoiceNumber}`
+                            );
+                        }
+                        if (searchParams.sellerTaxId) {
+                            monthlySearchParts.push(
+                                `nbmst==${searchParams.sellerTaxId}`
+                            );
+                        }
+                        if (searchParams.minAmount) {
+                            monthlySearchParts.push(
+                                `tgtttbso=ge=${searchParams.minAmount}`
+                            );
+                        }
+                        if (searchParams.maxAmount) {
+                            monthlySearchParts.push(
+                                `tgtttbso=le=${searchParams.maxAmount}`
+                            );
+                        }
+
+                        const monthlySearchQuery = monthlySearchParts.join(";");
+
+                        // Prepare date range for filename
+                        const dateRange = {
+                            startDate: range.startDate.toISOString(),
+                            endDate: range.endDate.toISOString(),
+                        };
+
+                        const exportRequest: ExcelExportRequest = {
+                            token: authResult!.token!,
+                            queryParams: {
+                                search: monthlySearchQuery,
+                            },
+                        };
+
+                        const result = await exportCombinedExcelWorkbook(
+                            exportRequest,
+                            dateRange
+                        );
+
+                        if (result.success && result.blob) {
+                            // Create download link and trigger download
+                            const url = window.URL.createObjectURL(result.blob);
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download =
+                                result.filename ||
+                                `Combined_Invoice_Report_${range.monthLabel.replace(
+                                    " ",
+                                    "_"
+                                )}.xlsx`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+
+                            successfulDownloads.push(range.monthLabel);
+                        } else {
+                            failedDownloads.push(
+                                `${range.monthLabel}: ${
+                                    result.error || "Unknown error"
+                                }`
+                            );
+                        }
+
+                        // Add delay between downloads to avoid overwhelming the server
+                        if (i < monthlyRanges.length - 1) {
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, 1000)
+                            );
+                        }
+                    } catch (error) {
+                        const errorMessage =
+                            error instanceof Error
+                                ? error.message
+                                : "Unknown error";
+                        failedDownloads.push(
+                            `${range.monthLabel}: ${errorMessage}`
+                        );
+                    }
+                }
+
+                // Update final progress
+                setMultiMonthProgress((prev) => ({
+                    ...prev,
+                    completedMonths: monthlyRanges.length,
+                    currentMonth: "",
+                    successfulDownloads,
+                    failedDownloads,
+                }));
+
+                // Set appropriate success/error message
+                if (successfulDownloads.length === monthlyRanges.length) {
+                    setDownloadError(null);
+                } else if (successfulDownloads.length > 0) {
+                    setDownloadError(
+                        `Downloaded ${successfulDownloads.length} of ${
+                            monthlyRanges.length
+                        } monthly reports. Failed: ${failedDownloads.join(
+                            ", "
+                        )}`
+                    );
+                } else {
+                    setDownloadError(
+                        `All monthly downloads failed: ${failedDownloads.join(
+                            ", "
+                        )}`
+                    );
+                }
+            } else {
+                // Single month - use existing logic
+                setMultiMonthProgress((prev) => ({
+                    ...prev,
+                    isMultiMonth: false,
+                }));
+
+                const searchQuery = buildSearchQuery();
+
+                // Prepare date range for descriptive filename
+                const dateRange = {
+                    startDate: searchParams.startDate?.toISOString() || "",
+                    endDate: searchParams.endDate?.toISOString() || "",
+                };
+
+                const exportRequest: ExcelExportRequest = {
+                    token: authResult!.token!,
+                    queryParams: {
+                        search: searchQuery,
+                    },
+                };
+
+                const result = await exportCombinedExcelWorkbook(
+                    exportRequest,
+                    dateRange
+                );
+
+                if (result.success && result.blob) {
+                    // Create download link and trigger download
+                    const url = window.URL.createObjectURL(result.blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download =
+                        result.filename || "Combined_Invoice_Report.xlsx";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    setDownloadError(
+                        result.error || "Failed to download combined Excel file"
+                    );
+                }
             }
         } catch (error) {
             setDownloadError(
@@ -535,6 +736,73 @@ export default function AuthenticatePage() {
             minAmount: "",
             maxAmount: "",
         });
+    };
+
+    // Date range utility functions for multi-month splitting
+    const isDateRangeMultiMonth = (startDate: Date, endDate: Date): boolean => {
+        if (!startDate || !endDate) return false;
+
+        const startYear = startDate.getFullYear();
+        const startMonth = startDate.getMonth();
+        const endYear = endDate.getFullYear();
+        const endMonth = endDate.getMonth();
+
+        return startYear !== endYear || startMonth !== endMonth;
+    };
+
+    const splitDateRangeByMonth = (
+        startDate: Date,
+        endDate: Date
+    ): Array<{
+        startDate: Date;
+        endDate: Date;
+        monthLabel: string;
+    }> => {
+        const ranges: Array<{
+            startDate: Date;
+            endDate: Date;
+            monthLabel: string;
+        }> = [];
+
+        const current = new Date(startDate);
+        const end = new Date(endDate);
+
+        while (current <= end) {
+            const monthStart = new Date(
+                current.getFullYear(),
+                current.getMonth(),
+                1
+            );
+            const monthEnd = new Date(
+                current.getFullYear(),
+                current.getMonth() + 1,
+                0
+            );
+
+            // Use the actual start date for the first month and actual end date for the last month
+            const rangeStart =
+                current.getTime() === startDate.getTime()
+                    ? startDate
+                    : monthStart;
+            const rangeEnd = monthEnd > end ? end : monthEnd;
+
+            const monthLabel = current.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+            });
+
+            ranges.push({
+                startDate: new Date(rangeStart),
+                endDate: new Date(rangeEnd),
+                monthLabel,
+            });
+
+            // Move to next month
+            current.setMonth(current.getMonth() + 1);
+            current.setDate(1);
+        }
+
+        return ranges;
     };
 
     // Helper function to get all invoices from combined results
@@ -1243,12 +1511,37 @@ export default function AuthenticatePage() {
                                             {downloadingExcel ? (
                                                 <>
                                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                                    Downloading...
+                                                    {multiMonthProgress.isMultiMonth ? (
+                                                        <span>
+                                                            {multiMonthProgress.currentMonth
+                                                                ? `Processing ${
+                                                                      multiMonthProgress.currentMonth
+                                                                  }... (${
+                                                                      multiMonthProgress.completedMonths +
+                                                                      1
+                                                                  }/${
+                                                                      multiMonthProgress.totalMonths
+                                                                  })`
+                                                                : `Downloading ${multiMonthProgress.completedMonths}/${multiMonthProgress.totalMonths} monthly reports...`}
+                                                        </span>
+                                                    ) : (
+                                                        "Downloading..."
+                                                    )}
                                                 </>
                                             ) : (
                                                 <>
                                                     📋 Download Combined
                                                     Workbook
+                                                    {searchParams.startDate &&
+                                                        searchParams.endDate &&
+                                                        isDateRangeMultiMonth(
+                                                            searchParams.startDate,
+                                                            searchParams.endDate
+                                                        ) && (
+                                                            <span className="ml-2 text-xs bg-yellow-500 text-yellow-900 px-2 py-1 rounded-full">
+                                                                Multi-Month
+                                                            </span>
+                                                        )}
                                                 </>
                                             )}
                                         </button>
@@ -1320,6 +1613,121 @@ export default function AuthenticatePage() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Multi-Month Download Progress */}
+                            {multiMonthProgress.isMultiMonth &&
+                                multiMonthProgress.totalMonths > 0 && (
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                        <div className="flex items-center mb-3">
+                                            <span className="text-blue-600 dark:text-blue-400 text-xl mr-3">
+                                                📊
+                                            </span>
+                                            <div>
+                                                <h3 className="text-blue-800 dark:text-blue-200 font-semibold">
+                                                    Multi-Month Download
+                                                    Progress
+                                                </h3>
+                                                <p className="text-blue-600 dark:text-blue-400 text-sm">
+                                                    Date range spans multiple
+                                                    months - downloading
+                                                    separately
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Progress Bar */}
+                                        <div className="mb-3">
+                                            <div className="flex justify-between text-sm text-blue-700 dark:text-blue-300 mb-1">
+                                                <span>Progress</span>
+                                                <span>
+                                                    {
+                                                        multiMonthProgress.completedMonths
+                                                    }
+                                                    /
+                                                    {
+                                                        multiMonthProgress.totalMonths
+                                                    }{" "}
+                                                    months
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                                                <div
+                                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    style={{
+                                                        width: `${
+                                                            (multiMonthProgress.completedMonths /
+                                                                multiMonthProgress.totalMonths) *
+                                                            100
+                                                        }%`,
+                                                    }}
+                                                ></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Current Month */}
+                                        {multiMonthProgress.currentMonth && (
+                                            <div className="mb-3 p-2 bg-blue-100 dark:bg-blue-800/30 rounded">
+                                                <span className="text-blue-800 dark:text-blue-200 text-sm font-medium">
+                                                    Currently processing:{" "}
+                                                    {
+                                                        multiMonthProgress.currentMonth
+                                                    }
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* Success/Failure Summary */}
+                                        {(multiMonthProgress.successfulDownloads
+                                            .length > 0 ||
+                                            multiMonthProgress.failedDownloads
+                                                .length > 0) && (
+                                            <div className="space-y-2">
+                                                {multiMonthProgress
+                                                    .successfulDownloads
+                                                    .length > 0 && (
+                                                    <div className="text-sm">
+                                                        <span className="text-green-600 dark:text-green-400 font-medium">
+                                                            ✅ Successful
+                                                            downloads (
+                                                            {
+                                                                multiMonthProgress
+                                                                    .successfulDownloads
+                                                                    .length
+                                                            }
+                                                            ):
+                                                        </span>
+                                                        <div className="text-green-700 dark:text-green-300 ml-4">
+                                                            {multiMonthProgress.successfulDownloads.join(
+                                                                ", "
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {multiMonthProgress
+                                                    .failedDownloads.length >
+                                                    0 && (
+                                                    <div className="text-sm">
+                                                        <span className="text-red-600 dark:text-red-400 font-medium">
+                                                            ❌ Failed downloads
+                                                            (
+                                                            {
+                                                                multiMonthProgress
+                                                                    .failedDownloads
+                                                                    .length
+                                                            }
+                                                            ):
+                                                        </span>
+                                                        <div className="text-red-700 dark:text-red-300 ml-4">
+                                                            {multiMonthProgress.failedDownloads.join(
+                                                                ", "
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                             {/* Invoice Results Display */}
                             {invoiceResult && (
