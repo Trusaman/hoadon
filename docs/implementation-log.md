@@ -1,7 +1,23 @@
-# Helper Functions Demo - Implementation Log
+# Vietnamese Tax Portal System - Implementation Log
 
 ## Overview
-Successfully implemented a comprehensive demonstration page showcasing all helper functions available in the `src/lib/` directory. The page provides interactive examples, performance monitoring, and real-world usage scenarios for each utility function.
+Successfully implemented a comprehensive Vietnamese Tax Portal authentication and invoice management system with captcha verification, authentication, invoice querying, and Excel export functionality.
+
+## Latest Update: Homepage Routing Configuration (2025-07-27)
+
+### Homepage Redirect to Authentication
+- **Modified**: `src/app/page.tsx` to redirect homepage to authentication page
+- **Implementation**: Direct component import and rendering approach
+- **Result**: Homepage (/) now displays the authentication page content
+- **Accessibility**: Authentication page remains accessible at both `/` and `/authenticate` paths
+- **URL Behavior**: No URL change in browser address bar when accessing root path
+- **Testing**: Verified authentication functionality works correctly on homepage
+
+### Technical Details
+- **Approach**: Import `AuthenticatePage` component directly in root page
+- **Code Change**: Replaced default Next.js welcome page with authentication component
+- **Compatibility**: Maintains existing authentication functionality and state management
+- **Performance**: No additional redirects or navigation overhead
 
 ## What Was Implemented
 
